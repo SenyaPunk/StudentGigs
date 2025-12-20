@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">StudentGigs</string>
+    <string name="title_activity_login_app">LoginAppActivity</string>
+</resources>

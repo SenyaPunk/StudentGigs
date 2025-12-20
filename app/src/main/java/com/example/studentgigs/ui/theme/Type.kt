@@ -62,7 +62,6 @@ val Typography = Typography(
         letterSpacing = 0.4.sp
     ),
 
-
     // Маленькие подписки, например, "новое"
     labelSmall = TextStyle(
         fontFamily = FontFamily.Default,
@@ -71,12 +70,4 @@ val Typography = Typography(
         lineHeight = 14.sp,
         letterSpacing = 0.5.sp
     ),
-
-
-
-
-
-
-
-
 )

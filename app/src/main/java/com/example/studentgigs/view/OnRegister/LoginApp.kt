@@ -20,22 +20,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Divider
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.TextField
-import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,12 +44,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -58,7 +54,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.studentgigs.R
 
 @Composable
@@ -71,42 +66,37 @@ fun PillTextField(
     trailingIcon: @Composable (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    singleLine: Boolean = true,
-    isDark: Boolean
+    singleLine: Boolean = true
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-
-    TextField(
+    OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .onFocusChanged { isFocused = it.isFocused }
-            .border(
-                width = 2.dp,
-                color = if (isFocused) Color(0xFF57CB60) else Color(0xFF9AA0A6),
-                shape = RoundedCornerShape(16.dp)
-            ),
-        textStyle = TextStyle(fontSize = 15.sp),
-        placeholder = { Text(placeholder, color = Color(0xFF9AA0A6)) },
+            .height(56.dp),
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = MaterialTheme.colorScheme.outline
+            )
+        },
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         singleLine = singleLine,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
-        colors = TextFieldDefaults.textFieldColors(
-            textColor = if (isDark) Color.White else Color.Black,
-            cursorColor = Color(0xFF57CB60),
-            leadingIconColor = Color(0xFF9AA0A6),
-            trailingIconColor = Color(0xFF9AA0A6),
-            placeholderColor = Color(0xFF9AA0A6),
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent,
-            backgroundColor = if (isDark) Color(0xFF171A24) else Color(0xFFFFFFFF)
-        ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+            unfocusedLeadingIconColor = MaterialTheme.colorScheme.outline,
+            focusedTrailingIconColor = MaterialTheme.colorScheme.primary,
+            unfocusedTrailingIconColor = MaterialTheme.colorScheme.outline,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        )
     )
 }
 
@@ -114,8 +104,7 @@ fun PillTextField(
 fun EmailInput(
     email: String,
     onEmailChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    isDark: Boolean
+    modifier: Modifier = Modifier
 ) {
     PillTextField(
         value = email,
@@ -132,8 +121,7 @@ fun EmailInput(
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Email,
             imeAction = ImeAction.Next
-        ),
-        isDark = isDark
+        )
     )
 }
 
@@ -141,8 +129,7 @@ fun EmailInput(
 fun PasswordInput(
     password: String,
     onPasswordChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    isDark: Boolean
+    modifier: Modifier = Modifier
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -162,7 +149,7 @@ fun PasswordInput(
             IconButton(onClick = { visible = !visible }) {
                 Icon(
                     imageVector = if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                    contentDescription = if (visible) "Показать пароль" else "Скрыть пароль"
+                    contentDescription = if (visible) "Скрыть пароль" else "Показать пароль"
                 )
             }
         },
@@ -170,19 +157,16 @@ fun PasswordInput(
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Password,
             imeAction = ImeAction.Done
-        ),
-        isDark = isDark
+        )
     )
 }
 
 @Composable
 fun LoginApp(innerPadding: PaddingValues) {
-    val isDark = isSystemInDarkTheme()
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isDark) Color(0xFF05070F) else Color(0xFFF5F5F5))
+            .background(MaterialTheme.colorScheme.background)
             .padding(innerPadding)
             .systemBarsPadding()
             .imePadding(),
@@ -199,11 +183,11 @@ private fun LoginContent(modifier: Modifier = Modifier) {
     var password by remember { mutableStateOf("") }
 
     Column(
-        modifier = modifier
-            .padding(horizontal = 24.dp),
+        modifier = modifier.padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
+        // Header
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 16.dp)
@@ -232,10 +216,11 @@ private fun LoginContent(modifier: Modifier = Modifier) {
                 text = "Войдите в свой аккаунт",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
-                color = Color(0xFF89898A)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
+        // Form
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -243,40 +228,26 @@ private fun LoginContent(modifier: Modifier = Modifier) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Email",
-                    style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        lineHeight = 14.sp,
-                        letterSpacing = 0.5.sp
-                    ),
+                    style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 EmailInput(
                     email = email,
-                    onEmailChange = { email = it },
-                    isDark = isDark
+                    onEmailChange = { email = it }
                 )
 
                 Spacer(Modifier.height(12.dp))
 
                 Text(
                     text = "Пароль",
-                    style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        lineHeight = 14.sp,
-                        letterSpacing = 0.5.sp
-                    ),
+                    style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 PasswordInput(
                     password = password,
-                    onPasswordChange = { password = it },
-                    isDark = isDark
+                    onPasswordChange = { password = it }
                 )
             }
 
@@ -288,9 +259,9 @@ private fun LoginContent(modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF57CB60),
-                    contentColor = if (isDark) Color(0xFF05070F) else Color(0xFFFFFFFF)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(
@@ -306,26 +277,23 @@ private fun LoginContent(modifier: Modifier = Modifier) {
                     .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Divider(
-                    color = Color(0xFF89898A),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp),
-                    thickness = 1.dp
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
                     text = "или",
                     modifier = Modifier.padding(horizontal = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Divider(
-                    color = Color(0xFF89898A),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp),
-                    thickness = 1.dp
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -335,7 +303,7 @@ private fun LoginContent(modifier: Modifier = Modifier) {
                     .height(52.dp)
                     .clickable { /* TODO: Implement Google login */ },
                 shape = RoundedCornerShape(16.dp),
-                color = if (isDark) Color(0xFF1e212b) else Color(0xFFFFFFFF),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 4.dp
             ) {
                 Row(
@@ -363,6 +331,7 @@ private fun LoginContent(modifier: Modifier = Modifier) {
             }
         }
 
+        // Footer
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -374,14 +343,14 @@ private fun LoginContent(modifier: Modifier = Modifier) {
                 text = "Нет аккаунта? ",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
-                color = Color(0xFF89898A)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = "Зарегистрироваться",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
-                color = Color(0xFF57CB60),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { /* TODO: Navigate to registration */ }
             )
         }

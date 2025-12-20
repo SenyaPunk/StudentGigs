@@ -40,6 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -47,75 +50,84 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.google.accompanist.navigation.animation.AnimatedNavHost
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import com.example.studentgigs.R
 import com.example.studentgigs.view.OnRegister.LoginApp
 import com.example.studentgigs.view.OnRegister.LoginAppActivity
+import com.example.studentgigs.ui.theme.AppColors
+import com.example.studentgigs.view.OnBoarding.components.CareerIcon
+import com.example.studentgigs.view.OnBoarding.components.ConnectionsIcon
+import com.example.studentgigs.view.OnBoarding.components.OnBoardingPage
+import com.example.studentgigs.view.OnBoarding.components.PortfolioIcon
+import com.example.studentgigs.view.OnBoarding.components.ProjectsIcon
 
+data class OnBoardingPageData(
+    val route: String,
+    val title: String,
+    val description: String,
+    val icon: @Composable (Float) -> Unit
+)
 
-val darkGradient = Brush.verticalGradient(
-    colors = listOf(
-        Color(0xFF05070F),
-        Color(0xFF162028),
-        Color(0xFF0C1221)
+val onBoardingPages = listOf(
+    OnBoardingPageData(
+        route = "firstStart",
+        title = "Реальные проекты",
+        description = "Выполняй микро-проекты от реальных компаний и стартапов",
+        icon = { ProjectsIcon(it) }
+    ),
+    OnBoardingPageData(
+        route = "secondStart",
+        title = "Создай портфолио",
+        description = "Каждый выполненный проект - это строчка в твоем резюме",
+        icon = { PortfolioIcon(it) }
+    ),
+    OnBoardingPageData(
+        route = "thirdStart",
+        title = "Связи в индустрии",
+        description = "Работодатели ищут талантливых студентов прямо здесь",
+        icon = { ConnectionsIcon(it) }
+    ),
+    OnBoardingPageData(
+        route = "fourthStart",
+        title = "Начни карьеру",
+        description = "От первого проекта до стажировки мечты - один шаг",
+        icon = { CareerIcon(it) }
     )
 )
 
-val lightGradient = Brush.verticalGradient(
-    colors = listOf(
-        Color(0xFFE6E9F3),
-        Color(0xFFFFFFFF),
-        Color(0xFFE0E0E0)
-    )
-)
 
-
-@OptIn(ExperimentalAnimationApi::class)
-fun slideFadeIn(fromRight: Boolean) =
+private fun slideFadeIn(fromRight: Boolean) =
     slideInHorizontally(
-        initialOffsetX = { if (fromRight) it else -it},
+        initialOffsetX = { if (fromRight) it else -it },
         animationSpec = tween(250)
-    ) + fadeIn(
-        animationSpec = tween(250)
-    )
+    ) + fadeIn(animationSpec = tween(250))
 
-@OptIn(ExperimentalAnimationApi::class)
-fun slideFadeOut(toLeft: Boolean) =
+private fun slideFadeOut(toLeft: Boolean) =
     slideOutHorizontally(
-        targetOffsetX = { if (toLeft) -it else it},
+        targetOffsetX = { if (toLeft) -it else it },
         animationSpec = tween(250)
-    ) + fadeOut(
-        animationSpec = tween(250)
-    )
+    ) + fadeOut(animationSpec = tween(250))
 
-
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun OnBoarding(innerPadding: PaddingValues) {
+fun OnBoarding(
+    innerPadding: PaddingValues,
+    onFinish: () -> Unit
+) {
     val navController = rememberNavController()
-    val pages = listOf(Screens.FirstStart.route, Screens.SecondStart.route, Screens.ThirdStart.route,
-        Screens.FourthStart.route)
+    val pages = onBoardingPages
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    val currentIndex = pages.indexOf(currentRoute).coerceAtLeast(0)
+    val currentIndex = pages.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
 
     val isDark = isSystemInDarkTheme()
-
-    val context = LocalContext.current
-
-    val gradient = if (isDark) darkGradient else lightGradient
-
-
+    val gradient = if (isDark) AppColors.darkGradient else AppColors.lightGradient
 
     Box(
-        modifier = Modifier.fillMaxSize().background(gradient)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(gradient)
     ) {
-
+        // Noise overlay
         Image(
             painter = painterResource(R.drawable.noise),
             contentDescription = null,
@@ -125,6 +137,7 @@ fun OnBoarding(innerPadding: PaddingValues) {
                 .alpha(0.007f)
         )
 
+        // Skip button
         Box(
             modifier = Modifier
                 .padding(innerPadding)
@@ -135,80 +148,49 @@ fun OnBoarding(innerPadding: PaddingValues) {
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(16.dp)
-                    .clickable(
-                        onClick = {
-                            val intent = Intent(context, LoginAppActivity::class.java)
-                            context.startActivity(intent)
-                        }
-                    ),
+                    .clickable(onClick = onFinish),
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF89898A)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-
+        // Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .offset(y = (-30).dp),
-
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-
-            AnimatedNavHost(
+            // Standard NavHost instead of deprecated AnimatedNavHost
+            NavHost(
                 navController = navController,
-                startDestination = pages.first(),
+                startDestination = pages.first().route,
             ) {
-
-                composable(
-                    route = Screens.FirstStart.route,
-                    enterTransition = { slideFadeIn(fromRight = true) },
-                    exitTransition = { slideFadeOut(toLeft = true) },
-                    popEnterTransition = { slideFadeIn(fromRight = false)},
-                    popExitTransition = { slideFadeOut(toLeft = false) }
-                ) {
-                    FirstStart(navController)
-                }
-
-                composable(
-                    route = Screens.SecondStart.route,
-                    enterTransition = { slideFadeIn(fromRight = true) },
-                    exitTransition = { slideFadeOut(toLeft = true) },
-                    popEnterTransition = { slideFadeIn(fromRight = false)},
-                    popExitTransition = { slideFadeOut(toLeft = false) }
-                ) {
-                    SecondStart(navController)
-                }
-
-                composable(
-                    route = Screens.ThirdStart.route,
-                    enterTransition = { slideFadeIn(fromRight = true) },
-                    exitTransition = { slideFadeOut(toLeft = true) },
-                    popEnterTransition = { slideFadeIn(fromRight = false)},
-                    popExitTransition = { slideFadeOut(toLeft = false) }
-                ) {
-                    ThirdStart(navController)
-                }
-
-                composable(
-                    route = Screens.FourthStart.route,
-                    enterTransition = { slideFadeIn(fromRight = true) },
-                    exitTransition = { slideFadeOut(toLeft = true) },
-                    popEnterTransition = { slideFadeIn(fromRight = false)},
-                    popExitTransition = { slideFadeOut(toLeft = false) }
-                ) {
-                    FourthStart(navController)
+                pages.forEach { pageData ->
+                    composable(
+                        route = pageData.route,
+                        enterTransition = { slideFadeIn(fromRight = true) },
+                        exitTransition = { slideFadeOut(toLeft = true) },
+                        popEnterTransition = { slideFadeIn(fromRight = false) },
+                        popExitTransition = { slideFadeOut(toLeft = false) }
+                    ) {
+                        OnBoardingPage(
+                            title = pageData.title,
+                            description = pageData.description,
+                            icon = pageData.icon
+                        )
+                    }
                 }
             }
-
         }
 
+        // Bottom controls
         Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
-
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             Column(
                 modifier = Modifier
@@ -217,48 +199,44 @@ fun OnBoarding(innerPadding: PaddingValues) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
                 DotsIndicator(
                     totalDots = pages.size,
                     selectedIndex = currentIndex,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                Button(onClick = {
-                    val next = (currentIndex + 1).coerceAtMost(pages.lastIndex)
-                    if (next > currentIndex) {
-                        navController.navigate(pages[next]) {
-                            launchSingleTop = true
+                Button(
+                    onClick = {
+                        val next = (currentIndex + 1).coerceAtMost(pages.lastIndex)
+                        if (next > currentIndex) {
+                            navController.navigate(pages[next].route) {
+                                launchSingleTop = true
+                            }
+                        } else {
+                            onFinish()
                         }
-                    } else {
-                        val intent = Intent(context, LoginAppActivity::class.java)
-                        context.startActivity(intent)
-                    }
-                }, modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 16.dp),
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
+                    val isLast = currentIndex == pages.lastIndex
                     Text(
-                        text = if (currentIndex == pages.lastIndex) "Начать  " else "Далее  ",
+                        text = if (isLast) "Начать  " else "Далее  ",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Icon(
-                        imageVector = if (currentIndex == pages.lastIndex) Icons.Default.Check else Icons.Default.KeyboardArrowRight,
-                        contentDescription = "Next slide"
+                        imageVector = if (isLast) Icons.Default.Check else Icons.Default.KeyboardArrowRight,
+                        contentDescription = null
                     )
                 }
             }
         }
     }
-
-
-
-
 }
-
 
 @Composable
 fun DotsIndicator(
@@ -268,23 +246,29 @@ fun DotsIndicator(
     dotSize: Dp = 8.dp,
     spacing: Dp = 8.dp,
     activeWidth: Dp = 28.dp,
-    activeColor: Color = Color(0xFF57CB60),
-    inactiveColor: Color = Color(0xFF89898A),
 ) {
+    val activeColor = MaterialTheme.colorScheme.primary
+    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(spacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        for (i in 0 until totalDots) {
+        repeat(totalDots) { i ->
             val isSelected = i == selectedIndex
-            val width by animateDpAsState(targetValue = if (isSelected) activeWidth else dotSize)
-            val height = dotSize
-            val color by animateColorAsState(targetValue = if (isSelected) activeColor else inactiveColor)
+            val width by animateDpAsState(
+                targetValue = if (isSelected) activeWidth else dotSize,
+                label = "dotWidth"
+            )
+            val color by animateColorAsState(
+                targetValue = if (isSelected) activeColor else inactiveColor,
+                label = "dotColor"
+            )
 
             Box(
                 modifier = Modifier
-                    .height(height)
+                    .height(dotSize)
                     .width(width)
                     .clip(RoundedCornerShape(50))
                     .background(color)
@@ -292,5 +276,3 @@ fun DotsIndicator(
         }
     }
 }
-
-

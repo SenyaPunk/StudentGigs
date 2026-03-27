@@ -2,7 +2,6 @@ package com.example.studentgigs.view.OnRegister
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +43,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -162,7 +160,7 @@ fun PasswordInput(
 }
 
 @Composable
-fun LoginApp(innerPadding: PaddingValues) {
+fun LoginApp(innerPadding: PaddingValues, onFinish: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -172,12 +170,12 @@ fun LoginApp(innerPadding: PaddingValues) {
             .imePadding(),
         contentAlignment = Alignment.Center
     ) {
-        LoginContent(modifier = Modifier.fillMaxSize())
+        LoginContent(modifier = Modifier.fillMaxSize(), onfinish = onFinish)
     }
 }
 
 @Composable
-private fun LoginContent(modifier: Modifier = Modifier) {
+private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) {
     val isDark = isSystemInDarkTheme()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -351,7 +349,7 @@ private fun LoginContent(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { /* TODO: Navigate to registration */ }
+                modifier = Modifier.clickable { onfinish() }
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.example.studentgigs.view.OnRegister
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.example.studentgigs.ui.theme.StudentGigsTheme
 
 class LoginAppActivity : ComponentActivity() {
@@ -16,7 +18,15 @@ class LoginAppActivity : ComponentActivity() {
         setContent {
             StudentGigsTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    LoginApp(innerPadding)
+                    val context = LocalContext.current
+
+                    LoginApp(
+                        innerPadding = innerPadding,
+                        onFinish = {
+                            val intent = Intent(context, RegisterAppActivity::class.java)
+                            context.startActivity(intent)
+                        }
+                    )
                 }
             }
         }

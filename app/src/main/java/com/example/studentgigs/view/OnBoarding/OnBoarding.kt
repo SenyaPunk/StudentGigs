@@ -163,7 +163,6 @@ fun OnBoarding(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Standard NavHost instead of deprecated AnimatedNavHost
             NavHost(
                 navController = navController,
                 startDestination = pages.first().route,

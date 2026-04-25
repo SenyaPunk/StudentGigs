@@ -20,10 +20,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.studentgigs.R
 import com.example.studentgigs.ui.theme.AppColors
+
 
 @Composable
 fun CircleIcon(
@@ -85,6 +87,9 @@ fun LogoIcon(
 fun ProjectsIcon(floatingOffset: Float) {
     LogoIcon(floatingOffset = floatingOffset)
 }
+
+
+
 
 @Composable
 fun PortfolioIcon(floatingOffset: Float) {

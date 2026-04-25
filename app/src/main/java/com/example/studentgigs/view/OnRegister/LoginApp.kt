@@ -252,7 +252,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = { /* TODO: Implement login logic */ },
+                onClick = { /* TODO: поставить то, что идет после входа */ },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -299,7 +299,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
-                    .clickable { /* TODO: Implement Google login */ },
+                    .clickable { /* TODO: вход через гугл поставить страницу */ },
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 4.dp

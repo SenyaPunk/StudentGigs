@@ -25,6 +25,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +39,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.studentgigs.view.OnRegister.components.FirstPage
-import com.example.studentgigs.view.OnRegister.components.OnRegisterPageData
+import com.example.studentgigs.view.OnRegister.components.RegisterPageContent
+import com.example.studentgigs.view.OnRegister.components.RoleOption
 import com.example.studentgigs.view.OnRegister.components.SecondPage
 import org.intellij.lang.annotations.JdkConstants
 
@@ -53,25 +57,22 @@ private fun slideFadeOut(toLeft: Boolean) =
     ) + fadeOut(animationSpec = tween(250))
 
 
-data class OnRegisterPageData (
+data class RegisterPageInfo (
     val route: String,
     val title: String,
-    val description: String,
-    val content: @Composable () -> Unit
+    val description: String
 )
 
-val onRegisterPages = listOf(
-    OnRegisterPageData(
+val registerPages = listOf(
+    RegisterPageInfo(
         route = "firstPage",
         title = "Кто вы?",
         description = "Выберите свою роль на платформе",
-        content = { FirstPage() }
     ),
-    OnRegisterPageData(
+    RegisterPageInfo(
         route = "secondPage",
         title = "Создать аккаунт",
         description = "Заполните данные для регистрации",
-        content = { SecondPage() }
     )
 
 )
@@ -79,13 +80,13 @@ val onRegisterPages = listOf(
 @Composable
 fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
     // Здесь будут слайды NavHost
-    val pages = onRegisterPages
 
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    val currentIndex = pages.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    val currentIndex = registerPages.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
 
+    var selectedRole by rememberSaveable { mutableStateOf<RoleOption?>(null) }
 
     Column(
         verticalArrangement = Arrangement.SpaceBetween,
@@ -95,7 +96,13 @@ fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
         Row(
         ) {
             IconButton(
-                onClick = { onStart() }
+                onClick = {
+                    if (currentIndex > 0) {
+                        navController.popBackStack()
+                    } else {
+                        onStart()
+                    }
+                }
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBackIosNew,
@@ -104,7 +111,7 @@ fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
             }
 
             DotsIndicator(
-                totalDots = pages.size,
+                totalDots = registerPages.size,
                 selectedIndex = currentIndex,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
@@ -113,20 +120,42 @@ fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
         Column {
             NavHost(
                 navController=navController,
-                startDestination = pages.first().route,
+                startDestination = registerPages.first().route,
             ) {
-                pages.forEach { pageData ->
-                    composable(
-                        pageData.route,
-                        enterTransition = { slideFadeIn(fromRight = true) },
-                        exitTransition = { slideFadeOut(toLeft = true) },
-                        popEnterTransition = { slideFadeIn(fromRight = false) },
-                        popExitTransition = { slideFadeOut(toLeft = false) }
+                composable(
+                    "firstPage",
+                    enterTransition = { slideFadeIn(fromRight = true) },
+                    exitTransition = { slideFadeOut(toLeft = true) },
+                    popEnterTransition = { slideFadeIn(fromRight = false) },
+                    popExitTransition = { slideFadeOut(toLeft = false) }
+                ) {
+                    RegisterPageContent (
+                        title = registerPages[0].title,
+                        description = registerPages[0].description,
                     ) {
-                        OnRegisterPageData(
-                            title = pageData.title,
-                            description = pageData.description,
-                            content = pageData.content
+                        FirstPage(
+                            selectedRole = selectedRole,
+                            onRoleSelected = {selectedRole = it},
+                            onContinue = {
+                                navController.navigate("secondPage")
+                            }
+                        )
+                    }
+                }
+
+                composable(
+                    "secondPage",
+                    enterTransition = { slideFadeIn(fromRight = true) },
+                    exitTransition = { slideFadeOut(toLeft = true) },
+                    popEnterTransition = { slideFadeIn(fromRight = false) },
+                    popExitTransition = { slideFadeOut(toLeft = false) }
+                ) {
+                    RegisterPageContent (
+                        title = registerPages[1].title,
+                        description = registerPages[1].description,
+                    ) {
+                        SecondPage(
+                            selectedRole = selectedRole,
                         )
                     }
                 }

@@ -39,10 +39,13 @@ import androidx.compose.ui.unit.sp
 
 enum class RoleOption { STUDENT, EMPLOYER }
 @Composable
-fun FirstPage() {
+fun FirstPage(
+    selectedRole: RoleOption?,
+    onRoleSelected: (RoleOption) -> Unit,
+    onContinue: () -> Unit
+) {
     val isDark = isSystemInDarkTheme()
-    var selected by rememberSaveable { mutableStateOf<RoleOption?>(null) }
-
+//    var selected by rememberSaveable { mutableStateOf<RoleOption?>(null) }
     var accent = MaterialTheme.colorScheme.primary
     var cardBg = if (isDark) Color(0xFF0E111B) else Color.White
     val cardBgSelected = if (isDark) Color(0xFF0d1a17) else Color(0xFFDFEAE4)
@@ -57,8 +60,8 @@ fun FirstPage() {
             title = "Студент",
             subtitle = "Ищу проекты и стажировки",
             icon = { Icon(Icons.Default.School, contentDescription = null) },
-            selected = selected == RoleOption.STUDENT,
-            onClick = { selected = RoleOption.STUDENT },
+            selected = selectedRole  == RoleOption.STUDENT,
+            onClick = { onRoleSelected(RoleOption.STUDENT)},
             accentColor = accent,
             background = cardBg,
             backgroundSelected = cardBgSelected
@@ -68,8 +71,8 @@ fun FirstPage() {
             title = "Работодатель",
             subtitle = "Ищу студентов для задач",
             icon = { Icon(Icons.Default.Person, contentDescription = null) },
-            selected = selected == RoleOption.EMPLOYER,
-            onClick = { selected = RoleOption.EMPLOYER },
+            selected = selectedRole == RoleOption.EMPLOYER,
+            onClick = { onRoleSelected(RoleOption.EMPLOYER) },
             accentColor = accent,
             background = cardBg,
             backgroundSelected = cardBgSelected
@@ -78,8 +81,8 @@ fun FirstPage() {
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { selected?.let { null } },
-            enabled = selected != null,
+            onClick = /* { selected?.let { null } } */ onContinue,
+            enabled = selectedRole != null,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -94,8 +97,8 @@ fun FirstPage() {
 
 
 @Composable
-fun SecondPage() {
-
+fun SecondPage(selectedRole: RoleOption?) {
+    Text("hdsfds")
 }
 
 

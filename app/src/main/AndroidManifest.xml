@@ -12,6 +12,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.StudentGigs">
         <activity
+            android:name=".view.OnApp.MainAppActivity"
+            android:exported="false"
+            android:label="@string/title_activity_main_app"
+            android:theme="@style/Theme.StudentGigs" />
+        <activity
             android:name=".view.OnRegister.RegisterAppActivity"
             android:exported="false"
             android:label="@string/title_activity_register_app"

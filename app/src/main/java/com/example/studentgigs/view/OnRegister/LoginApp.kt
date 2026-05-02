@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -180,8 +182,10 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    var scrollState = rememberScrollState()
+
     Column(
-        modifier = modifier.padding(horizontal = 24.dp),
+        modifier = modifier.padding(horizontal = 24.dp).verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -295,6 +299,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 )
             }
 
+
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -304,6 +309,8 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 4.dp
             ) {
+
+
                 Row(
                     modifier = Modifier
                         .fillMaxSize()

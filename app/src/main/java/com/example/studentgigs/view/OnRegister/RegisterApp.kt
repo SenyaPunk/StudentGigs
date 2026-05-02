@@ -1,6 +1,7 @@
 package com.example.studentgigs.view.OnRegister
 
 import android.accessibilityservice.GestureDescription
+import android.content.Intent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
@@ -47,6 +49,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.studentgigs.view.OnApp.MainAppActivity
 import com.example.studentgigs.view.OnRegister.components.FirstPage
 import com.example.studentgigs.view.OnRegister.components.RegisterPageContent
 import com.example.studentgigs.view.OnRegister.components.RoleOption
@@ -176,9 +179,12 @@ fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
                         title = registerPages[1].title,
                         description = registerPages[1].description
                     ) {
+                        val context = LocalContext.current
+                        val intent = Intent(context, MainAppActivity::class.java)
+
                         SecondPage(
                             selectedRole = selectedRole,
-                            onApp = {}
+                            onApp = {context.startActivity(intent)}
                         )
                     }
                 }

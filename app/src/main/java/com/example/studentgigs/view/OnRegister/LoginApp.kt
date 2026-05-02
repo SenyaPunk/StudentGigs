@@ -21,21 +21,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,118 +38,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.studentgigs.R
-
-@Composable
-fun PillTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "",
-    leadingIcon: @Composable (() -> Unit)? = null,
-    trailingIcon: @Composable (() -> Unit)? = null,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    singleLine: Boolean = true
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        placeholder = {
-            Text(
-                text = placeholder,
-                color = MaterialTheme.colorScheme.outline
-            )
-        },
-        leadingIcon = leadingIcon,
-        trailingIcon = trailingIcon,
-        singleLine = singleLine,
-        visualTransformation = visualTransformation,
-        keyboardOptions = keyboardOptions,
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-            focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-            unfocusedLeadingIconColor = MaterialTheme.colorScheme.outline,
-            focusedTrailingIconColor = MaterialTheme.colorScheme.primary,
-            unfocusedTrailingIconColor = MaterialTheme.colorScheme.outline,
-            cursorColor = MaterialTheme.colorScheme.primary,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-        )
-    )
-}
-
-@Composable
-fun EmailInput(
-    email: String,
-    onEmailChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    PillTextField(
-        value = email,
-        onValueChange = onEmailChange,
-        modifier = modifier,
-        placeholder = "putin.v.v@edu.mirea.ru",
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Email,
-                contentDescription = "Email",
-                modifier = Modifier.size(20.dp)
-            )
-        },
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Email,
-            imeAction = ImeAction.Next
-        )
-    )
-}
-
-@Composable
-fun PasswordInput(
-    password: String,
-    onPasswordChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var visible by remember { mutableStateOf(false) }
-
-    PillTextField(
-        value = password,
-        onValueChange = onPasswordChange,
-        modifier = modifier,
-        placeholder = "********",
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = "Password",
-                modifier = Modifier.size(20.dp)
-            )
-        },
-        trailingIcon = {
-            IconButton(onClick = { visible = !visible }) {
-                Icon(
-                    imageVector = if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                    contentDescription = if (visible) "Скрыть пароль" else "Показать пароль"
-                )
-            }
-        },
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Password,
-            imeAction = ImeAction.Done
-        )
-    )
-}
+import com.example.studentgigs.ui.components.EmailInput
+import com.example.studentgigs.ui.components.PasswordInput
 
 @Composable
 fun LoginApp(innerPadding: PaddingValues, onFinish: () -> Unit) {
@@ -177,15 +60,17 @@ fun LoginApp(innerPadding: PaddingValues, onFinish: () -> Unit) {
 }
 
 @Composable
-private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) {
+private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit) {
     val isDark = isSystemInDarkTheme()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    var scrollState = rememberScrollState()
+    val scrollState = rememberScrollState()
 
     Column(
-        modifier = modifier.padding(horizontal = 24.dp).verticalScroll(scrollState),
+        modifier = modifier
+            .padding(horizontal = 24.dp)
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
@@ -211,6 +96,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
             Text(
                 text = "Добро пожаловать",
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
 
@@ -231,12 +117,14 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 Text(
                     text = "Email",
                     style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 EmailInput(
                     email = email,
-                    onEmailChange = { email = it }
+                    onEmailChange = { email = it },
+                    placeholder = "putin.v.v@edu.mirea.ru"
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -244,6 +132,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 Text(
                     text = "Пароль",
                     style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
@@ -282,7 +171,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
                     thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.outline
                 )
 
                 Text(
@@ -295,10 +184,9 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
                     thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
-
 
             Surface(
                 modifier = Modifier
@@ -309,8 +197,6 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 4.dp
             ) {
-
-
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -330,6 +216,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit, ) 
                         text = "Войти через Google",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
                 }

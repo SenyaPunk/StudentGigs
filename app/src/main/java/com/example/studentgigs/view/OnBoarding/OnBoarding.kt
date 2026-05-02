@@ -1,10 +1,5 @@
 package com.example.studentgigs.view.OnBoarding
 
-import android.content.Intent
-import android.util.Log
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,13 +13,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -38,21 +31,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.studentgigs.R
-import com.example.studentgigs.view.OnRegister.LoginApp
-import com.example.studentgigs.view.OnRegister.LoginAppActivity
+import com.example.studentgigs.ui.components.DotsIndicator
 import com.example.studentgigs.ui.theme.AppColors
 import com.example.studentgigs.view.OnBoarding.components.CareerIcon
 import com.example.studentgigs.view.OnBoarding.components.ConnectionsIcon
@@ -93,7 +81,6 @@ val onBoardingPages = listOf(
         icon = { CareerIcon(it) }
     )
 )
-
 
 private fun slideFadeIn(fromRight: Boolean) =
     slideInHorizontally(
@@ -233,45 +220,6 @@ fun OnBoarding(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun DotsIndicator(
-    totalDots: Int,
-    selectedIndex: Int,
-    modifier: Modifier = Modifier,
-    dotSize: Dp = 8.dp,
-    spacing: Dp = 8.dp,
-    activeWidth: Dp = 28.dp,
-) {
-    val activeColor = MaterialTheme.colorScheme.primary
-    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(spacing),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(totalDots) { i ->
-            val isSelected = i == selectedIndex
-            val width by animateDpAsState(
-                targetValue = if (isSelected) activeWidth else dotSize,
-                label = "dotWidth"
-            )
-            val color by animateColorAsState(
-                targetValue = if (isSelected) activeColor else inactiveColor,
-                label = "dotColor"
-            )
-
-            Box(
-                modifier = Modifier
-                    .height(dotSize)
-                    .width(width)
-                    .clip(RoundedCornerShape(50))
-                    .background(color)
-            )
         }
     }
 }

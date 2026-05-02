@@ -53,6 +53,15 @@ val Typography = Typography(
         letterSpacing = 0.2.sp
     ),
 
+    // Маленький текст для подсказок и ошибок
+    bodySmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.3.sp
+    ),
+
     // Чипы, теги например React, Figma, Python и тд
     labelMedium = TextStyle(
         fontFamily = FontFamily.Default,

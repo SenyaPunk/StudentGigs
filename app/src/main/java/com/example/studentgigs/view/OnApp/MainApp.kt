@@ -1,11 +1,7 @@
 package com.example.studentgigs.view.OnApp
 
-import android.app.Person
-import android.view.Surface
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Notifications
@@ -187,23 +179,25 @@ fun MediumContainer() {
 
 @Composable
 fun TagItem(text: String) {
-
-
     Surface(
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp)
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.bodySmall,
-            color = Color.LightGray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-fun InfoRowItem(icon: ImageVector, text: String, color: Color = Color.Gray) {
+fun InfoRowItem(
+    icon: ImageVector,
+    text: String,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = icon,
@@ -226,7 +220,7 @@ fun GigCard(gig: Gig) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0E111B)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(
@@ -240,7 +234,7 @@ fun GigCard(gig: Gig) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(Color(0xFF1E222C), CircleShape),
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(gig.iconEmoji, style = MaterialTheme.typography.headlineSmall)
@@ -253,25 +247,25 @@ fun GigCard(gig: Gig) {
                         text = gig.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = gig.company,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (gig.isNew) {
                         Surface(
-                            color = Color(0xFF1B2E24),
+                            color = MaterialTheme.colorScheme.secondary,
                             shape = CircleShape
                         ) {
                             Text(
                                 "Новое",
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                color = Color(0xFF4CAF50),
+                                color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -280,7 +274,7 @@ fun GigCard(gig: Gig) {
                         Icon(
                             imageVector = if (gig.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                             contentDescription = null,
-                            tint = if (gig.isSaved) Color(0xFFFFC107) else Color.Gray
+                            tint = if (gig.isSaved) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -295,9 +289,8 @@ fun GigCard(gig: Gig) {
                 InfoRowItem(
                     Icons.Outlined.AttachMoney,
                     gig.price,
-                    color = Color(0xFF4CAF50)
+                    color = MaterialTheme.colorScheme.primary
                 )
-
             }
 
             Row(
@@ -307,11 +300,8 @@ fun GigCard(gig: Gig) {
                     TagItem(tag)
                 }
             }
-
-
         }
     }
-
 }
 
 
@@ -346,7 +336,7 @@ fun HeaderCircleButton(
                     .size(8.dp)
                     .align(Alignment.TopEnd)
                     .offset(x = (-10).dp, y = 10.dp)
-                    .background(Color.Red, CircleShape)
+                    .background(MaterialTheme.colorScheme.error, CircleShape)
                     .padding(2.dp)
             )
         }

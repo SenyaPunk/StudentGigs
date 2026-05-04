@@ -2,12 +2,14 @@ package com.example.studentgigs.view.OnApp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,16 +29,22 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.CurrencyRuble
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,14 +82,65 @@ data class Gig(
     val iconEmoji: String
 )
 
+sealed class BottomNavItem(
+    val title: String,
+    val icon: ImageVector,
+    val route: String
+) {
+    object Home : BottomNavItem("Главная", Icons.Rounded.Home, "home")
+    object Search : BottomNavItem("Поиск", Icons.Rounded.Search, "search")
+    object Saved : BottomNavItem("Избранное", Icons.Rounded.Bookmark, "saved")
+    object Profile : BottomNavItem("Профиль", Icons.Rounded.Person, "profile")
+
+}
+
 
 @Composable
 fun MainApp(innerPadding: PaddingValues) {
-    Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding)
-    ) {
-        TopContainer("Сеня")
+    var currentRoute by remember { mutableStateOf("home") }
+
+    Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+
+        ) {
+            when (currentRoute) {
+                "home" -> {
+                    TopContainer("Сеня")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MediumContainer()
+                }
+                "search" -> {
+                    Text("Экран поиска", modifier = Modifier.padding(16.dp))
+                }
+                "saved" -> {
+                    Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
+                }
+                "profile" -> {
+                    Text("Ваш профиль", modifier = Modifier.padding(16.dp))
+                }
+            }
+        }
     }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        BottomContainer(
+            currentRoute = currentRoute,
+            onNavigate = { currentRoute = it }
+        )
+    }
+
+
+
+
+
 }
 
 @Composable
@@ -138,9 +197,7 @@ fun TopContainer(name: String?) {
         SearchInput(search = search, onSearchChange = {search = it})
         CategorySelector()
 
-        Column {
-            MediumContainer()
-        }
+
     }
 }
 
@@ -148,24 +205,37 @@ fun TopContainer(name: String?) {
 @Composable
 fun MediumContainer() {
     val gigs = listOf(
-        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000 ₽", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000 ₽", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000 ₽", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000 ₽", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000 ₽", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000 ₽", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
+        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
+        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
+        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
+        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
+        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
+        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
     )
 
-    Column {
-        Row {
-            Text("Новые проекты")
-
-            Text("5 доступно")
+    Column(
+        modifier = Modifier.padding(horizontal = 15.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Text(
+                "Новые проекты",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "${gigs.size} доступно",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
 
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().weight(1f)
         ) {
             items(gigs) {
                 GigCard(it)
@@ -173,6 +243,78 @@ fun MediumContainer() {
         }
 
 
+    }
+}
+
+
+@Composable
+fun BottomContainer(
+    currentRoute: String,
+    onNavigate: (String) -> Unit
+) {
+    val items = listOf(
+        BottomNavItem.Home,
+        BottomNavItem.Search,
+        BottomNavItem.Saved,
+        BottomNavItem.Profile
+    )
+
+    Surface(
+        modifier = Modifier
+            .padding(horizontal = 15.dp, vertical = 12.dp)
+            .fillMaxWidth()
+            .height(72.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 8.dp,
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items.forEach {
+                val isSelected = currentRoute == it.route
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onNavigate(it.route) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxHeight(0.9f)
+                                .fillMaxWidth(0.9f),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface
+                        ) {}
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = it.icon,
+                            contentDescription = it.title,
+                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = it.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -287,7 +429,7 @@ fun GigCard(gig: Gig) {
                 InfoRowItem(Icons.Outlined.Schedule, gig.duration)
                 InfoRowItem(Icons.Outlined.Place, gig.location)
                 InfoRowItem(
-                    Icons.Outlined.AttachMoney,
+                    Icons.Outlined.CurrencyRuble,
                     gig.price,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -409,8 +551,8 @@ fun SearchInput(
             )
         },
         keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Email,
-            imeAction = ImeAction.Next
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Search
         )
     )
 }

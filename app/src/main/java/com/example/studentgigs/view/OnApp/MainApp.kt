@@ -64,6 +64,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.studentgigs.view.OnApp.components.SearchScreen
 
 data class Category(
     val name: String,
@@ -113,7 +114,7 @@ fun MainApp(innerPadding: PaddingValues) {
                     MediumContainer()
                 }
                 "search" -> {
-                    Text("Экран поиска", modifier = Modifier.padding(16.dp))
+                    SearchScreen(onBack = { currentRoute = "home" })
                 }
                 "saved" -> {
                     Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
@@ -125,16 +126,18 @@ fun MainApp(innerPadding: PaddingValues) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 16.dp),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        BottomContainer(
-            currentRoute = currentRoute,
-            onNavigate = { currentRoute = it }
-        )
+    if (currentRoute != "search") {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 16.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            BottomContainer(
+                currentRoute = currentRoute,
+                onNavigate = { currentRoute = it }
+            )
+        }
     }
 
 
@@ -195,7 +198,6 @@ fun TopContainer(name: String?) {
         }
 
         SearchInput(search = search, onSearchChange = {search = it})
-        CategorySelector()
 
 
     }
@@ -216,27 +218,35 @@ fun MediumContainer() {
     Column(
         modifier = Modifier.padding(horizontal = 15.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Text(
-                "Новые проекты",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "${gigs.size} доступно",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
+
 
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().weight(1f)
         ) {
+            item {
+                CategorySelector()
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Text(
+                        "Новые проекты",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "${gigs.size} доступно",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
             items(gigs) {
                 GigCard(it)
             }

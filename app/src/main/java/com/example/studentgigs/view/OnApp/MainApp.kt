@@ -1,5 +1,16 @@
 package com.example.studentgigs.view.OnApp
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,11 +35,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Card
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CurrencyRuble
 import androidx.compose.material.icons.outlined.Notifications
@@ -39,13 +48,13 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,6 +74,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.studentgigs.view.OnApp.components.NotificationScreen
+import com.example.studentgigs.view.OnApp.components.ProfileScreen
 import com.example.studentgigs.view.OnApp.components.SearchScreen
 
 data class Category(
@@ -93,26 +104,53 @@ sealed class BottomNavItem(
     object Search : BottomNavItem("Поиск", Icons.Rounded.Search, "search")
     object Saved : BottomNavItem("Избранное", Icons.Rounded.Bookmark, "saved")
     object Profile : BottomNavItem("Профиль", Icons.Rounded.Person, "profile")
-
 }
-
 
 @Composable
 fun MainApp(innerPadding: PaddingValues) {
     var currentRoute by remember { mutableStateOf("home") }
+    var selectedGig by remember { mutableStateOf<Gig?>(null) }
+
+    BackHandler(enabled = currentRoute != "home") {
+        currentRoute = "home"
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+        AnimatedContent(
+            targetState = currentRoute,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f)) togetherWith
+                        (fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.95f))
+            },
+            label = "route_transition"
+        ) { route ->
 
-        ) {
-            when (currentRoute) {
+            when (route) {
                 "home" -> {
-                    TopContainer("Сеня")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    MediumContainer()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
+                        TopContainer(
+                            name = "Сеня",
+                            onSearchClick = { currentRoute = "search" },
+                            onNotificationClick = {currentRoute = "notification"},
+                            onProfileClick = {currentRoute = "profile" }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        MediumContainer(onGigClick = {
+                            selectedGig = it
+                            currentRoute = "gig_details"
+                        })
+                    }
+
+                }
+                "gig_details" -> {
+                    selectedGig?.let { gig ->
+                        GigScreen(gig = gig, onBack = { currentRoute = "home" })
+                    }
                 }
                 "search" -> {
                     SearchScreen(onBack = { currentRoute = "home" })
@@ -121,18 +159,20 @@ fun MainApp(innerPadding: PaddingValues) {
                     Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
                 }
                 "profile" -> {
-                    Text("Ваш профиль", modifier = Modifier.padding(16.dp))
+                    ProfileScreen()
+                }
+                "notification" -> {
+                    NotificationScreen(onBack = {currentRoute = "home"})
                 }
             }
-        }
-    }
 
-    if (currentRoute != "search") {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.BottomCenter
+        }
+
+        AnimatedVisibility(
+            visible = currentRoute != "search" && currentRoute != "gig_details" && currentRoute != "notification",
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             BottomContainer(
                 currentRoute = currentRoute,
@@ -140,17 +180,10 @@ fun MainApp(innerPadding: PaddingValues) {
             )
         }
     }
-
-
-
-
-
 }
 
 @Composable
-fun TopContainer(name: String?) {
-    var search by remember { mutableStateOf("") }
-
+fun TopContainer(name: String?, onSearchClick: () -> Unit, onNotificationClick: () -> Unit,  onProfileClick: () -> Unit) {
     Column(
         modifier = Modifier.padding(horizontal = 15.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -160,7 +193,6 @@ fun TopContainer(name: String?) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             Column {
                 Text(
                     "Привет, ${name ?: "гость"}",
@@ -179,12 +211,11 @@ fun TopContainer(name: String?) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
                 HeaderCircleButton(
                     icon = Icons.Outlined.Notifications,
                     backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
                     iconColor = MaterialTheme.colorScheme.onSurface,
-                    onClick = { /* TODO */ },
+                    onClick = onNotificationClick,
                     hasBadge = true
                 )
 
@@ -192,38 +223,34 @@ fun TopContainer(name: String?) {
                     icon = Icons.Outlined.Person,
                     backgroundColor = MaterialTheme.colorScheme.primary,
                     iconColor = MaterialTheme.colorScheme.onPrimary,
-                    onClick = { /* TODO */ }
+                    onClick = onProfileClick
                 )
-
             }
         }
 
-        SearchInput(search = search, onSearchChange = {search = it})
-
-
+        SearchInput(onClick = onSearchClick)
     }
 }
 
-@Preview
 @Composable
-fun MediumContainer() {
-    val gigs = listOf(
-        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-        Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-        Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-    )
+fun MediumContainer(onGigClick: (Gig) -> Unit ) {
+    val gigs = remember {
+        listOf(
+            Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
+            Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
+            Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
+            Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
+            Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
+            Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
+        )
+    }
 
     Column(
         modifier = Modifier.padding(horizontal = 15.dp)
     ) {
-
-
-
         LazyColumn(
-            modifier = Modifier.fillMaxSize().weight(1f)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 96.dp)
         ) {
             item {
                 CategorySelector()
@@ -248,33 +275,32 @@ fun MediumContainer() {
                 }
             }
 
-            items(gigs) {
-                GigCard(it)
+            items(gigs) { gig ->
+                GigCard(gig = gig, onClick = { onGigClick(gig) })
             }
         }
-
-
     }
 }
-
 
 @Composable
 fun BottomContainer(
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {
-    val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Search,
-        BottomNavItem.Saved,
-        BottomNavItem.Profile
-    )
+    val items = remember {
+        listOf(
+            BottomNavItem.Home,
+            BottomNavItem.Search,
+            BottomNavItem.Saved,
+            BottomNavItem.Profile
+        )
+    }
 
     Surface(
         modifier = Modifier
-            .padding(horizontal = 15.dp, vertical = 12.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
             .fillMaxWidth()
-            .height(72.dp),
+            .height(60.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 8.dp,
@@ -301,8 +327,8 @@ fun BottomContainer(
                     if (isSelected) {
                         Surface(
                             modifier = Modifier
-                                .fillMaxHeight(0.9f)
-                                .fillMaxWidth(0.9f),
+                                .fillMaxHeight(0.85f)
+                                .fillMaxWidth(0.85f),
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surface
                         ) {}
@@ -328,7 +354,6 @@ fun BottomContainer(
         }
     }
 }
-
 
 @Composable
 fun TagItem(text: String) {
@@ -368,11 +393,12 @@ fun InfoRowItem(
 }
 
 @Composable
-fun GigCard(gig: Gig) {
+fun GigCard(gig: Gig, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp)
+            .clickable{ onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -457,9 +483,6 @@ fun GigCard(gig: Gig) {
     }
 }
 
-
-
-
 @Composable
 fun HeaderCircleButton(
     icon: ImageVector,
@@ -496,9 +519,6 @@ fun HeaderCircleButton(
     }
 }
 
-
-
-
 @Composable
 fun PillTextField(
     value: String,
@@ -510,7 +530,8 @@ fun PillTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    singleLine: Boolean = true
+    singleLine: Boolean = true,
+    readOnly: Boolean = false // Добавили параметр readOnly
 ) {
     OutlinedTextField(
         value = value,
@@ -518,6 +539,7 @@ fun PillTextField(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp),
+        readOnly = readOnly,
         placeholder = {
             Text(
                 text = placeholder,
@@ -547,45 +569,52 @@ fun PillTextField(
 
 @Composable
 fun SearchInput(
-    search: String,
-    onSearchChange: (String) -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    PillTextField(
-        value = search,
-        onValueChange = onSearchChange,
-        modifier = modifier,
-        placeholder = "Поиск проектов...",
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
-                modifier = Modifier.size(20.dp)
-            )
-        },
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Search
+    Box(modifier = modifier) {
+        PillTextField(
+            value = "",
+            onValueChange = {},
+            readOnly = true, // Поле только для чтения, чтобы не всплывала клавиатура
+            placeholder = "Поиск проектов...",
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         )
-    )
+        // Прозрачный слой поверх поля, который перехватывает клики
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                )
+        )
+    }
 }
-
-
 
 @Composable
 fun CategorySelector() {
-    val categories = listOf(
-        Category("Все", "🔥"),
-        Category("Разработка", "💻"),
-        Category("Дизайн", "🎨"),
-        Category("Маркетинг", "📈")
-    )
+    // Оптимизация: оборачиваем в remember
+    val categories = remember {
+        listOf(
+            Category("Все", "🔥"),
+            Category("Разработка", "💻"),
+            Category("Дизайн", "🎨"),
+            Category("Маркетинг", "📈")
+        )
+    }
 
     var selectedCategory by remember { mutableStateOf(categories[0]) }
 
     LazyRow(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(categories) { category ->
@@ -596,9 +625,6 @@ fun CategorySelector() {
                 isSelected = isSelected,
                 onClick = { selectedCategory = category }
             )
-
-
-
         }
     }
 }
@@ -641,10 +667,3 @@ fun CategoryShip(
     }
 }
 
-
-@Preview
-@Composable
-fun viewFun() {
-
-    TopContainer("Senya")
-}

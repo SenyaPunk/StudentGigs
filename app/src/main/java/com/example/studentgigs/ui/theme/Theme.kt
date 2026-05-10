@@ -36,7 +36,7 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Color(0xFFD84343),
     background = Color(0xFFF6F7FB),
     surface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFFF0F1F5),
+    surfaceVariant = Color(0xFFE7E8EC),
     onPrimary = Color.White,
     onSecondary = Color(0xFF1A5F2E),
     onTertiary = Color.White,
@@ -47,6 +47,7 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = Color(0xFFD9DCE3),
     error = Color(0xFFD84343),
     onError = Color.White,
+
 )
 
 @Composable

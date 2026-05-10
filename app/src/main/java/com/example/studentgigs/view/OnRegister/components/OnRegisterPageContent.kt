@@ -1,5 +1,6 @@
 package com.example.studentgigs.view.OnRegister.components
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -50,6 +51,7 @@ import com.example.studentgigs.ui.components.DefaultInput
 import com.example.studentgigs.ui.components.EmailInput
 import com.example.studentgigs.ui.components.PasswordInput
 import com.example.studentgigs.viewmodel.AuthViewModel
+import kotlinx.coroutines.launch
 
 enum class RoleOption { STUDENT, EMPLOYER }
 
@@ -129,6 +131,9 @@ fun SecondPage(
     var companyPost by remember { mutableStateOf("") }
 
     val passwordMatch = password == confirmPassword && password.isNotEmpty()
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Наблюдаем за успешной регистрацией
     LaunchedEffect(uiState.registrationSuccess) {
@@ -273,7 +278,40 @@ fun SecondPage(
             Surface(
                 modifier = Modifier
                     .size(55.dp)
-                    .clickable { /* TODO: Google sign in */ },
+                    .clickable {
+                        coroutineScope.launch {
+                            try {
+                                val credentialManager = androidx.credentials.CredentialManager.create(context)
+
+                                val webClientId = "814316273478-ocda4niiqt9ke7rnujuj6qquju2fodnj.apps.googleusercontent.com"
+
+                                val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
+                                    .setFilterByAuthorizedAccounts(false)
+                                    .setServerClientId(webClientId)
+                                    .setAutoSelectEnabled(true)
+                                    .build()
+
+                                val request = androidx.credentials.GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleIdOption)
+                                    .build()
+
+                                val result = credentialManager.getCredential(context, request)
+                                val credential = result.credential
+
+                                if (credential is androidx.credentials.CustomCredential &&
+                                    credential.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                                ) {
+                                    val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
+
+                                    email = googleIdTokenCredential.id
+                                    name = googleIdTokenCredential.displayName ?: ""
+
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("GoogleAuth", "ОШИБКА: ${e.javaClass.simpleName} - ${e.message}")
+                            }
+                        }
+                    },
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 4.dp,

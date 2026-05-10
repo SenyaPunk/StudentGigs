@@ -1,5 +1,6 @@
 package com.example.studentgigs.view.OnRegister
 
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,11 +25,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,16 +40,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.studentgigs.R
 import com.example.studentgigs.ui.components.EmailInput
 import com.example.studentgigs.ui.components.PasswordInput
+import com.example.studentgigs.view.OnApp.MainAppActivity
+import com.example.studentgigs.viewmodel.AuthViewModel
 
 @Composable
-fun LoginApp(innerPadding: PaddingValues, onFinish: () -> Unit) {
+fun LoginApp(
+    innerPadding: PaddingValues,
+    onFinish: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -55,17 +67,37 @@ fun LoginApp(innerPadding: PaddingValues, onFinish: () -> Unit) {
             .imePadding(),
         contentAlignment = Alignment.Center
     ) {
-        LoginContent(modifier = Modifier.fillMaxSize(), onfinish = onFinish)
+        LoginContent(
+            modifier = Modifier.fillMaxSize(),
+            onfinish = onFinish,
+            authViewModel = authViewModel
+        )
     }
 }
 
 @Composable
-private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit) {
+private fun LoginContent(
+    modifier: Modifier = Modifier,
+    onfinish: () -> Unit,
+    authViewModel: AuthViewModel
+) {
     val isDark = isSystemInDarkTheme()
+    val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    val uiState by authViewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    // Наблюдаем за успешным входом
+    LaunchedEffect(uiState.loginSuccess) {
+        if (uiState.loginSuccess) {
+            authViewModel.clearLoginSuccess()
+            val intent = Intent(context, MainAppActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            context.startActivity(intent)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -123,7 +155,10 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit) {
 
                 EmailInput(
                     email = email,
-                    onEmailChange = { email = it },
+                    onEmailChange = {
+                        email = it
+                        authViewModel.clearError()
+                    },
                     placeholder = "putin.v.v@edu.mirea.ru"
                 )
 
@@ -138,14 +173,30 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit) {
 
                 PasswordInput(
                     password = password,
-                    onPasswordChange = { password = it }
+                    onPasswordChange = {
+                        password = it
+                        authViewModel.clearError()
+                    }
                 )
+
+                // Показываем ошибку
+                uiState.error?.let { error ->
+                    Text(
+                        error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
 
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = { /* TODO: поставить то, что идет после входа */ },
+                onClick = {
+                    authViewModel.login(email, password)
+                },
+                enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -155,11 +206,19 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit) {
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Text(
-                    text = "Войти",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Войти",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Row(
@@ -192,7 +251,7 @@ private fun LoginContent(modifier: Modifier = Modifier, onfinish: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
-                    .clickable { /* TODO: вход через гугл поставить страницу */ },
+                    .clickable { /* TODO: вход через гугл */ },
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 4.dp

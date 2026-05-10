@@ -74,9 +74,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
 import com.example.studentgigs.view.OnApp.components.NotificationScreen
 import com.example.studentgigs.view.OnApp.components.ProfileScreen
 import com.example.studentgigs.view.OnApp.components.SearchScreen
+import com.example.studentgigs.viewmodel.AuthViewModel
 
 data class Category(
     val name: String,
@@ -107,9 +109,15 @@ sealed class BottomNavItem(
 }
 
 @Composable
-fun MainApp(innerPadding: PaddingValues) {
+fun MainApp(
+    innerPadding: PaddingValues,
+    authViewModel: AuthViewModel
+) {
     var currentRoute by remember { mutableStateOf("home") }
     var selectedGig by remember { mutableStateOf<Gig?>(null) }
+
+    val uiState by authViewModel.uiState.collectAsState()
+    val userName = uiState.currentUser?.shortName ?: "гость"
 
     BackHandler(enabled = currentRoute != "home") {
         currentRoute = "home"
@@ -134,7 +142,7 @@ fun MainApp(innerPadding: PaddingValues) {
                             .background(MaterialTheme.colorScheme.background)
                     ) {
                         TopContainer(
-                            name = "Сеня",
+                            name = userName,
                             onSearchClick = { currentRoute = "search" },
                             onNotificationClick = {currentRoute = "notification"},
                             onProfileClick = {currentRoute = "profile" }
@@ -159,7 +167,7 @@ fun MainApp(innerPadding: PaddingValues) {
                     Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
                 }
                 "profile" -> {
-                    ProfileScreen()
+                    ProfileScreen(authViewModel = authViewModel)
                 }
                 "notification" -> {
                     NotificationScreen(onBack = {currentRoute = "home"})

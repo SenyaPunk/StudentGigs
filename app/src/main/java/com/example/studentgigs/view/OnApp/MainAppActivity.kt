@@ -1,26 +1,43 @@
 package com.example.studentgigs.view.OnApp
 
+import android.content.Intent
 import android.os.Bundle
-import android.os.PersistableBundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.studentgigs.data.local.SessionManager
 import com.example.studentgigs.ui.theme.StudentGigsTheme
+import com.example.studentgigs.view.OnRegister.LoginAppActivity
+import com.example.studentgigs.viewmodel.AuthViewModel
 
 class MainAppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Проверяем авторизацию
+        val sessionManager = SessionManager.getInstance(this)
+        if (!sessionManager.isLoggedIn()) {
+            // Переходим на экран входа
+            val intent = Intent(this, LoginAppActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
+
         enableEdgeToEdge()
         setContent {
             StudentGigsTheme {
+                val authViewModel: AuthViewModel = viewModel()
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainApp(
                         innerPadding = innerPadding,
+                        authViewModel = authViewModel
                     )
                 }
             }

@@ -36,6 +36,7 @@ import com.example.studentgigs.view.OnRegister.components.FirstPage
 import com.example.studentgigs.view.OnRegister.components.RegisterPageContent
 import com.example.studentgigs.view.OnRegister.components.RoleOption
 import com.example.studentgigs.view.OnRegister.components.SecondPage
+import com.example.studentgigs.viewmodel.AuthViewModel
 
 data class RegisterPageInfo(
     val route: String,
@@ -57,7 +58,11 @@ val registerPages = listOf(
 )
 
 @Composable
-fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
+fun RegisterApp(
+    innerPadding: PaddingValues,
+    onStart: () -> Unit,
+    authViewModel: AuthViewModel
+) {
     var currentPageIndex by rememberSaveable { mutableStateOf(0) }
     var selectedRole by rememberSaveable { mutableStateOf<RoleOption?>(null) }
 
@@ -145,11 +150,15 @@ fun RegisterApp(innerPadding: PaddingValues, onStart: () -> Unit) {
                         description = registerPages[1].description
                     ) {
                         val context = LocalContext.current
-                        val intent = Intent(context, MainAppActivity::class.java)
 
                         SecondPage(
                             selectedRole = selectedRole,
-                            onApp = { context.startActivity(intent) }
+                            authViewModel = authViewModel,
+                            onApp = {
+                                val intent = Intent(context, MainAppActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                context.startActivity(intent)
+                            }
                         )
                     }
                 }

@@ -1,8 +1,8 @@
 package com.example.studentgigs.view.OnApp.components
 
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,13 +24,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.WorkOutline
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.ButtonDefaults
@@ -45,19 +41,30 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.studentgigs.data.model.User
+import com.example.studentgigs.data.model.UserRole
 import com.example.studentgigs.view.OnApp.TagItem
+import com.example.studentgigs.view.OnRegister.LoginAppActivity
+import com.example.studentgigs.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    authViewModel: AuthViewModel
+) {
+    val context = LocalContext.current
+    val uiState by authViewModel.uiState.collectAsState()
+    val currentUser = uiState.currentUser
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -69,7 +76,7 @@ fun ProfileScreen() {
         ProfileTopBar()
 
         Spacer(modifier = Modifier.height(24.dp))
-        ProfileHeaderCard()
+        ProfileHeaderCard(user = currentUser)
 
         Spacer(modifier = Modifier.height(24.dp))
         SkillsSection()
@@ -78,7 +85,14 @@ fun ProfileScreen() {
         MenuSection()
 
         Spacer(modifier = Modifier.height(24.dp))
-        ExitButton()
+        ExitButton(
+            onLogout = {
+                authViewModel.logout()
+                val intent = Intent(context, LoginAppActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.startActivity(intent)
+            }
+        )
     }
 }
 
@@ -114,7 +128,27 @@ fun ProfileTopBar() {
 }
 
 @Composable
-fun ProfileHeaderCard() {
+fun ProfileHeaderCard(user: User?) {
+    val displayName = user?.profileName ?: "Гость"
+    val nameParts = displayName.split(" ")
+    val formattedName = if (nameParts.size >= 2) {
+        "${nameParts[0]}\n${nameParts[1]}"
+    } else {
+        displayName
+    }
+
+    val roleDescription = when (user?.role) {
+        UserRole.STUDENT -> "Студент"
+        UserRole.EMPLOYER -> user.companyPosition ?: "Работодатель"
+        null -> "Не авторизован"
+    }
+
+    val emoji = when (user?.role) {
+        UserRole.STUDENT -> "👨‍💻"
+        UserRole.EMPLOYER -> "💼"
+        null -> "👤"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -128,16 +162,14 @@ fun ProfileHeaderCard() {
                         .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "👨‍💻", fontSize = 40.sp)
-
-
+                    Text(text = emoji, fontSize = 40.sp)
                 }
 
                 Spacer(modifier = Modifier.width(20.dp))
 
                 Column {
                     Text(
-                        text = "Арсений\nКубинский",
+                        text = formattedName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -145,16 +177,24 @@ fun ProfileHeaderCard() {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "РТУ МИРЭА, Разработка ПО",
+                        text = roleDescription,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (user?.email != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = user.email,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Rounded.Star,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary, // Использование primary для акцента
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -261,7 +301,6 @@ fun MenuSection() {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
             ProfileMenuItem(icon = Icons.Outlined.Notifications, title = "Уведомления")
-
         }
     }
 }
@@ -328,9 +367,9 @@ fun ProfileMenuItem(
 }
 
 @Composable
-fun ExitButton() {
+fun ExitButton(onLogout: () -> Unit) {
     OutlinedButton(
-        onClick = { /* Выход из акка */ },
+        onClick = onLogout,
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp),

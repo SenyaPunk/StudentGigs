@@ -26,11 +26,14 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,10 +44,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.studentgigs.R
 import com.example.studentgigs.ui.components.DefaultInput
 import com.example.studentgigs.ui.components.EmailInput
 import com.example.studentgigs.ui.components.PasswordInput
+import com.example.studentgigs.viewmodel.AuthViewModel
 
 enum class RoleOption { STUDENT, EMPLOYER }
 
@@ -109,13 +114,29 @@ fun FirstPage(
 @Composable
 fun SecondPage(
     selectedRole: RoleOption?,
+    authViewModel: AuthViewModel = viewModel(),
     onApp: () -> Unit,
 ) {
     val accent = MaterialTheme.colorScheme.primary
+    val uiState by authViewModel.uiState.collectAsState()
 
-    // Form state - в будущем переместить в ViewModel
-    val formState = rememberRegisterFormState()
-    val passwordMatch = formState.password == formState.confirmPassword && formState.password.isNotEmpty()
+    // Form state
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var company by remember { mutableStateOf("") }
+    var companyPost by remember { mutableStateOf("") }
+
+    val passwordMatch = password == confirmPassword && password.isNotEmpty()
+
+    // Наблюдаем за успешной регистрацией
+    LaunchedEffect(uiState.registrationSuccess) {
+        if (uiState.registrationSuccess) {
+            authViewModel.clearRegistrationSuccess()
+            onApp()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -125,19 +146,83 @@ fun SecondPage(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             if (selectedRole == RoleOption.STUDENT) {
-                StudentFields(formState)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormField("ФИО") {
+                        DefaultInput(
+                            text = name,
+                            onTextChange = { name = it },
+                            placeholder = "Путин Владимир Владимирович"
+                        )
+                    }
+                    FormField("Email") {
+                        EmailInput(
+                            email = email,
+                            onEmailChange = { email = it },
+                            placeholder = "putin.v.v@edu.mirea.ru"
+                        )
+                    }
+                    FormField("Пароль") {
+                        PasswordInput(password = password, onPasswordChange = { password = it })
+                    }
+                    FormField("Подтвердите пароль") {
+                        PasswordInput(password = confirmPassword, onPasswordChange = { confirmPassword = it })
+                    }
+                }
             } else {
-                EmployerFields(formState)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormField("Название компании") {
+                        DefaultInput(
+                            text = company,
+                            onTextChange = { company = it },
+                            placeholder = "РТУ МИРЭА",
+                            imageVector = Icons.Default.Work
+                        )
+                    }
+                    FormField("Должность") {
+                        DefaultInput(
+                            text = companyPost,
+                            onTextChange = { companyPost = it },
+                            placeholder = "Team Lead",
+                            imageVector = Icons.Default.People
+                        )
+                    }
+                    FormField("Email") {
+                        EmailInput(
+                            email = email,
+                            onEmailChange = { email = it },
+                            placeholder = "hr@company.ru"
+                        )
+                    }
+                    FormField("Пароль") {
+                        PasswordInput(password = password, onPasswordChange = { password = it })
+                    }
+                    FormField("Подтвердите пароль") {
+                        PasswordInput(password = confirmPassword, onPasswordChange = { confirmPassword = it })
+                    }
+                }
             }
 
-            if (formState.confirmPassword.isNotEmpty() && !passwordMatch) {
+            if (confirmPassword.isNotEmpty() && !passwordMatch) {
                 Text(
                     "Пароли не совпадают",
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // Показываем ошибку от сервера
+            uiState.error?.let { error ->
+                Text(
+                    error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -145,7 +230,26 @@ fun SecondPage(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
-                onClick = onApp,
+                onClick = {
+                    authViewModel.clearError()
+                    if (selectedRole == RoleOption.STUDENT) {
+                        authViewModel.registerStudent(
+                            fullName = name,
+                            email = email,
+                            password = password,
+                            confirmPassword = confirmPassword
+                        )
+                    } else {
+                        authViewModel.registerEmployer(
+                            companyName = company,
+                            companyPosition = companyPost,
+                            email = email,
+                            password = password,
+                            confirmPassword = confirmPassword
+                        )
+                    }
+                },
+                enabled = !uiState.isLoading && passwordMatch,
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
@@ -155,7 +259,15 @@ fun SecondPage(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Text(text = "Зарегистрироваться", fontSize = 18.sp)
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(text = "Зарегистрироваться", fontSize = 18.sp)
+                }
             }
 
             Surface(
@@ -175,120 +287,6 @@ fun SecondPage(
                     )
                 }
             }
-        }
-    }
-}
-
-// Состояние формы регистрации - временно здесь, потом переместить в ViewModel
-class RegisterFormState {
-    var name: String = ""
-    var email: String = ""
-    var password: String = ""
-    var confirmPassword: String = ""
-    var company: String = ""
-    var companyPost: String = ""
-}
-
-@Composable
-fun rememberRegisterFormState(): RegisterFormState {
-    return remember { RegisterFormState() }.also { state ->
-        val nameState = remember { mutableStateOf(state.name) }
-        val emailState = remember { mutableStateOf(state.email) }
-        val passwordState = remember { mutableStateOf(state.password) }
-        val confirmPasswordState = remember { mutableStateOf(state.confirmPassword) }
-        val companyState = remember { mutableStateOf(state.company) }
-        val companyPostState = remember { mutableStateOf(state.companyPost) }
-
-        state.name = nameState.value
-        state.email = emailState.value
-        state.password = passwordState.value
-        state.confirmPassword = confirmPasswordState.value
-        state.company = companyState.value
-        state.companyPost = companyPostState.value
-    }
-}
-
-@Composable
-private fun StudentFields(formState: RegisterFormState) {
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
-    // Синхронизация с formState
-    formState.name = name
-    formState.email = email
-    formState.password = password
-    formState.confirmPassword = confirmPassword
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        FormField("ФИО") {
-            DefaultInput(
-                text = name,
-                onTextChange = { name = it },
-                placeholder = "Путин Владимир Владимирович"
-            )
-        }
-        FormField("Email") {
-            EmailInput(
-                email = email,
-                onEmailChange = { email = it },
-                placeholder = "putin.v.v@edu.mirea.ru"
-            )
-        }
-        FormField("Пароль") {
-            PasswordInput(password = password, onPasswordChange = { password = it })
-        }
-        FormField("Подтвердите пароль") {
-            PasswordInput(password = confirmPassword, onPasswordChange = { confirmPassword = it })
-        }
-    }
-}
-
-@Composable
-private fun EmployerFields(formState: RegisterFormState) {
-    var company by remember { mutableStateOf("") }
-    var companyPost by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
-    // Синхронизация с formState
-    formState.company = company
-    formState.companyPost = companyPost
-    formState.email = email
-    formState.password = password
-    formState.confirmPassword = confirmPassword
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        FormField("Название компании") {
-            DefaultInput(
-                text = company,
-                onTextChange = { company = it },
-                placeholder = "РТУ МИРЭА",
-                imageVector = Icons.Default.Work
-            )
-        }
-        FormField("Должность") {
-            DefaultInput(
-                text = companyPost,
-                onTextChange = { companyPost = it },
-                placeholder = "Team Lead",
-                imageVector = Icons.Default.People
-            )
-        }
-        FormField("Email") {
-            EmailInput(
-                email = email,
-                onEmailChange = { email = it },
-                placeholder = "hr@company.ru"
-            )
-        }
-        FormField("Пароль") {
-            PasswordInput(password = password, onPasswordChange = { password = it })
-        }
-        FormField("Подтвердите пароль") {
-            PasswordInput(password = confirmPassword, onPasswordChange = { confirmPassword = it })
         }
     }
 }
@@ -367,6 +365,38 @@ fun SelectableCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun RegisterPageContent(
+    title: String,
+    description: String,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            content()
         }
     }
 }

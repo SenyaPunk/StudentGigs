@@ -59,7 +59,8 @@ import com.example.studentgigs.viewmodel.AuthViewModel
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    onNavigateToNotifications: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by authViewModel.uiState.collectAsState()
@@ -82,7 +83,7 @@ fun ProfileScreen(
         SkillsSection()
 
         Spacer(modifier = Modifier.height(24.dp))
-        MenuSection()
+        MenuSection(onNotificationClick = onNavigateToNotifications)
 
         Spacer(modifier = Modifier.height(24.dp))
         ExitButton(
@@ -284,7 +285,7 @@ fun SkillsSection() {
 }
 
 @Composable
-fun MenuSection() {
+fun MenuSection(onNotificationClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -300,7 +301,7 @@ fun MenuSection() {
             ProfileMenuItem(icon = Icons.Outlined.Star, title = "Отзывы", badgeCount = 5)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
-            ProfileMenuItem(icon = Icons.Outlined.Notifications, title = "Уведомления")
+            ProfileMenuItem(icon = Icons.Outlined.Notifications, title = "Уведомления", onClick = onNotificationClick)
         }
     }
 }

@@ -167,7 +167,7 @@ fun MainApp(
                     Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
                 }
                 "profile" -> {
-                    ProfileScreen(authViewModel = authViewModel)
+                    ProfileScreen(authViewModel = authViewModel, onNavigateToNotifications = {currentRoute = "notification"})
                 }
                 "notification" -> {
                     NotificationScreen(onBack = {currentRoute = "home"})

@@ -1,5 +1,6 @@
 package com.example.studentgigs.data.remote
 
+import com.example.studentgigs.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -69,7 +70,91 @@ class ApiClient {
         postRequest(ApiConfig.BASE_URL + ApiConfig.UPDATE_USER, json.toString())
     }
 
-    // ВЫполение POST запроса
+    // Верификация работодателя
+    suspend fun verifyEmployer(
+        userId: Long,
+        passportPhotoUrl: String
+    ): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply {
+            put("user_id", userId)
+            put("passport_photo_url", passportPhotoUrl)
+        }
+
+        postRequest(ApiConfig.BASE_URL + ApiConfig.VERIFY_EMPLOYER, json.toString())
+    }
+
+    // Проверка статуса верификации
+    suspend fun checkVerification(userId: Long): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply {
+            put("user_id", userId)
+        }
+
+        postRequest(ApiConfig.BASE_URL + ApiConfig.CHECK_VERIFICATION, json.toString())
+    }
+
+    // Создание задания
+    suspend fun createTask(
+        employerId: Long,
+        type: TaskType,
+        title: String,
+        description: String,
+        price: String,
+        requirements: List<String> = emptyList(),
+        benefits: List<String> = emptyList(),
+        tags: List<String> = emptyList(),
+        priceType: PriceType = PriceType.FIXED,
+        duration: String = "",
+        location: String = "",
+        locationType: LocationType = LocationType.REMOTE,
+        deadline: Long? = null,
+        iconEmoji: String = "📋",
+        employmentType: EmploymentType? = null,
+        schedule: String? = null,
+        serviceCategory: String? = null
+    ): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply {
+            put("employer_id", employerId)
+            put("type", type.name)
+            put("title", title)
+            put("description", description)
+            put("price", price)
+            put("requirements", requirements.joinToString("|"))
+            put("benefits", benefits.joinToString("|"))
+            put("tags", tags.joinToString("|"))
+            put("price_type", priceType.name)
+            put("duration", duration)
+            put("location", location)
+            put("location_type", locationType.name)
+            deadline?.let { put("deadline", it) }
+            put("icon_emoji", iconEmoji)
+            employmentType?.let { put("employment_type", it.name) }
+            schedule?.let { put("schedule", it) }
+            serviceCategory?.let { put("service_category", it) }
+        }
+
+        postRequest(ApiConfig.BASE_URL + ApiConfig.CREATE_TASK, json.toString())
+    }
+
+    // Получение списка заданий
+    suspend fun getTasks(
+        type: TaskType? = null,
+        employerId: Long? = null,
+        status: TaskStatus = TaskStatus.ACTIVE,
+        limit: Int = 50,
+        offset: Int = 0
+    ): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply {
+            type?.let { put("type", it.name) }
+            employerId?.let { put("employer_id", it) }
+            put("status", status.name)
+            put("limit", limit)
+            put("offset", offset)
+        }
+
+        postRequest(ApiConfig.BASE_URL + ApiConfig.GET_TASKS, json.toString())
+    }
+
+    // Выполение POST запроса
     private fun postRequest(urlString: String, jsonBody: String): ApiResponse {
         android.util.Log.d(TAG, "POST запрос: $urlString")
         android.util.Log.d(TAG, "Тело запроса: $jsonBody")

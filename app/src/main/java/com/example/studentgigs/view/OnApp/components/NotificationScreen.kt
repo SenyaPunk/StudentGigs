@@ -121,11 +121,10 @@ fun NotificationCard(item: NotificationItemData) {
         NotificationCategory.SYSTEM -> Icons.Rounded.EditNote
     }
 
-    // Используем семантические цвета темы вместо хардкода
     val iconTint = when (item.category) {
         NotificationCategory.RESPONSE -> MaterialTheme.colorScheme.primary
         NotificationCategory.DEADLINE -> MaterialTheme.colorScheme.error
-        NotificationCategory.REVIEW -> Color(0xFFFFC107) // Золотой обычно статичен для рейтингов
+        NotificationCategory.REVIEW -> Color(0xFFFFC107)
         else -> MaterialTheme.colorScheme.secondary
     }
 
@@ -153,7 +152,6 @@ fun NotificationCard(item: NotificationItemData) {
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
-                // 2. Иконка со статичным фоном onSurfaceVariant
                 Surface(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(14.dp),
@@ -197,7 +195,7 @@ fun NotificationCard(item: NotificationItemData) {
 
                     Text(
                         text = item.description,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, // Адаптивный серый текст
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
                     )

@@ -68,17 +68,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.example.studentgigs.data.model.UserRole
+import com.example.studentgigs.data.model.VerificationStatus
+import com.example.studentgigs.view.OnApp.components.CreateTaskScreen
+import com.example.studentgigs.view.OnApp.components.EmployerTasksScreen
 import com.example.studentgigs.view.OnApp.components.NotificationScreen
 import com.example.studentgigs.view.OnApp.components.ProfileScreen
 import com.example.studentgigs.view.OnApp.components.SearchScreen
+import com.example.studentgigs.view.OnApp.components.VerificationScreen
 import com.example.studentgigs.viewmodel.AuthViewModel
+import com.example.studentgigs.viewmodel.TaskViewModel
 
 data class Category(
     val name: String,
@@ -111,13 +121,31 @@ sealed class BottomNavItem(
 @Composable
 fun MainApp(
     innerPadding: PaddingValues,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    taskViewModel: TaskViewModel
 ) {
     var currentRoute by remember { mutableStateOf("home") }
-    var selectedGig by remember { mutableStateOf<Gig?>(null) }
+    var selectedTask by remember { mutableStateOf<com.example.studentgigs.data.model.Task?>(null) }
 
     val uiState by authViewModel.uiState.collectAsState()
-    val userName = uiState.currentUser?.shortName ?: "гость"
+    val currentUser = uiState.currentUser
+    val userName = currentUser?.shortName ?: "гость"
+    val isEmployer = currentUser?.role == UserRole.EMPLOYER
+    val isVerified = currentUser?.verificationStatus == VerificationStatus.VERIFIED
+
+    val taskUiState by taskViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        taskViewModel.loadAllActiveTasks()
+    }
+    LaunchedEffect(taskUiState.createSuccess) {
+        if (taskUiState.createSuccess) {
+            // Задание создано успешно -> обновляем список с сервера
+            taskViewModel.loadAllActiveTasks()
+            // Сбрасываем флаг, чтобы при следующем входе эффект не сработал лишний раз
+            taskViewModel.clearCreateSuccess()
+        }
+    }
 
     BackHandler(enabled = currentRoute != "home") {
         currentRoute = "home"
@@ -144,40 +172,105 @@ fun MainApp(
                         TopContainer(
                             name = userName,
                             onSearchClick = { currentRoute = "search" },
-                            onNotificationClick = {currentRoute = "notification"},
-                            onProfileClick = {currentRoute = "profile" }
+                            onNotificationClick = { currentRoute = "notification" },
+                            onProfileClick = { currentRoute = "profile" },
+                            isEmployer = isEmployer,
+                            isVerified = isVerified,
+                            onAddTaskClick = {
+                                if (isVerified) {
+                                    currentRoute = "create_task"
+                                } else {
+                                    currentRoute = "verification"
+                                }
+                            }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        MediumContainer(onGigClick = {
-                            selectedGig = it
-                            currentRoute = "gig_details"
-                        })
+                        MediumContainer(
+                            tasks = taskUiState.tasks,
+                            onGigClick = {clickedTask ->
+                                selectedTask = clickedTask
+                                currentRoute = "gig_details"
+                            }
+                        )
                     }
-
                 }
                 "gig_details" -> {
-                    selectedGig?.let { gig ->
-                        GigScreen(gig = gig, onBack = { currentRoute = "home" })
+                    selectedTask?.let { task ->
+                        GigScreen(
+                            task = task,
+                            onBack = { currentRoute = "home" }
+                        )
                     }
                 }
                 "search" -> {
-                    SearchScreen(onBack = { currentRoute = "home" })
+                    SearchScreen(
+                        tasks = taskUiState.tasks,
+                        onBack = { currentRoute = "home" },
+                        onTaskClick = { clickedTask ->
+                            selectedTask = clickedTask
+                            currentRoute = "gig_details"
+                        }
+                    )
                 }
                 "saved" -> {
                     Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
                 }
                 "profile" -> {
-                    ProfileScreen(authViewModel = authViewModel, onNavigateToNotifications = {currentRoute = "notification"})
+                    val activeCount = taskUiState.tasks.count {
+                        it.employerId == currentUser?.id && it.status.toString() == "ACTIVE"
+                    }
+
+                    ProfileScreen(
+                        authViewModel = authViewModel,
+                        activeTasksCount = activeCount,
+                        onNavigateToNotifications = { currentRoute = "notification" },
+                        onNavigateToVerification = { currentRoute = "verification" },
+                        onNavigateToMyTasks = { currentRoute = "employer_tasks" }
+                    )
                 }
                 "notification" -> {
-                    NotificationScreen(onBack = {currentRoute = "home"})
+                    NotificationScreen(onBack = { currentRoute = "home" })
+                }
+                "verification" -> {
+                    VerificationScreen(
+                        authViewModel = authViewModel,
+                        onBack = { currentRoute = "profile" },
+                        onVerificationComplete = {
+                            authViewModel.refreshCurrentUser()
+                            currentRoute = "home"
+                        }
+                    )
+                }
+                "create_task" -> {
+                    currentUser?.let { user ->
+                        CreateTaskScreen(
+                            taskViewModel = taskViewModel,
+                            employerId = user.id,
+                            onBack = { currentRoute = "home" },
+                            onTaskCreated = { currentRoute = "home" }
+                        )
+                    }
+                }
+                "employer_tasks" -> {
+                    currentUser?.let { user ->
+                        EmployerTasksScreen(
+                            tasks = taskUiState.tasks,
+                            currentEmployerId = user.id,
+                            onBack = { currentRoute = "profile" },
+                            onTaskClick = { clickedTask ->
+                                selectedTask = clickedTask
+                                currentRoute = "gig_details"
+                            }
+                        )
+                    }
                 }
             }
-
         }
 
         AnimatedVisibility(
-            visible = currentRoute != "search" && currentRoute != "gig_details" && currentRoute != "notification",
+            visible = currentRoute != "search" && currentRoute != "gig_details" &&
+                    currentRoute != "notification" && currentRoute != "verification" &&
+                    currentRoute != "create_task",
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -191,11 +284,21 @@ fun MainApp(
 }
 
 @Composable
-fun TopContainer(name: String?, onSearchClick: () -> Unit, onNotificationClick: () -> Unit,  onProfileClick: () -> Unit) {
+fun TopContainer(
+    name: String?,
+    onSearchClick: () -> Unit,
+    onNotificationClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    isEmployer: Boolean = false,
+    isVerified: Boolean = false,
+    onAddTaskClick: () -> Unit = {}
+) {
     Column(
         modifier = Modifier.padding(horizontal = 15.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -209,7 +312,7 @@ fun TopContainer(name: String?, onSearchClick: () -> Unit, onNotificationClick: 
                     fontSize = 15.sp
                 )
                 Text(
-                    "Найди свой проект",
+                    if (isEmployer) "Найдите исполнителя" else "Найди свой проект",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 20.sp
@@ -236,21 +339,71 @@ fun TopContainer(name: String?, onSearchClick: () -> Unit, onNotificationClick: 
             }
         }
 
-        SearchInput(onClick = onSearchClick)
+        if (!isEmployer) SearchInput(onClick = onSearchClick)
+
+        if (isEmployer) {
+            val strokeColor = if (isVerified) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            val dashEffect = Stroke(
+                width = 2f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+            )
+
+            Surface(
+                onClick = onAddTaskClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .drawWithContent {
+                        drawContent()
+                        drawRoundRect(
+                            color = strokeColor,
+                            style = dashEffect,
+                            cornerRadius = CornerRadius(16.dp.toPx())
+                        )
+                    },
+                color = if (isVerified)
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                else
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = if (isVerified) Icons.Outlined.Add else Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = strokeColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (isVerified) "Добавить задание" else "Нужна верификация",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = strokeColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun MediumContainer(onGigClick: (Gig) -> Unit ) {
-    val gigs = remember {
-        listOf(
-            Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-            Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-            Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-            Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-            Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15 000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-            Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20 000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-        )
+fun MediumContainer(
+    tasks: List<com.example.studentgigs.data.model.Task>,
+    onGigClick: (com.example.studentgigs.data.model.Task) -> Unit
+) {
+
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(Unit) {
+        while(true) {
+            kotlinx.coroutines.delay(60_000) // ждать 60 секунд
+            currentTime = System.currentTimeMillis()
+        }
     }
 
     Column(
@@ -260,9 +413,7 @@ fun MediumContainer(onGigClick: (Gig) -> Unit ) {
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
-            item {
-                CategorySelector()
-            }
+            item { CategorySelector() }
 
             item {
                 Row(
@@ -270,21 +421,40 @@ fun MediumContainer(onGigClick: (Gig) -> Unit ) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    Text(
-                        "Новые проекты",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "${gigs.size} доступно",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text("Новые проекты", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${tasks.size} доступно", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
-            items(gigs) { gig ->
-                GigCard(gig = gig, onClick = { onGigClick(gig) })
+            items(tasks) { task ->
+                val isNewLabelVisible = (currentTime - task.createdAt) < 900_000L
+
+                val subtitle = if (!task.employerPosition.isNullOrBlank()) {
+                    "${task.employerPosition} • ${task.employerName}"
+                } else {
+                    task.employerName
+                }
+
+
+                val gigDisplay = Gig(
+                    title = task.title,
+                    company = subtitle,
+                    duration = task.duration ?: "Срок не указан",
+                    location = task.location.split(",").first().trim().ifEmpty { "Удаленно" },
+                    price = task.price,
+                    tags = task.tags,
+                    isNew = isNewLabelVisible,
+                    iconEmoji = task.iconEmoji,
+                    isSaved = false
+                )
+
+                GigCard(gig = gigDisplay, onClick = { onGigClick(task) })
+            }
+
+            if (tasks.isEmpty()) {
+                item {
+                    Text("Заданий пока нет", modifier = Modifier.padding(16.dp))
+                }
             }
         }
     }
@@ -471,14 +641,18 @@ fun GigCard(gig: Gig, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                val displayPrice = if (gig.price.contains("₽")) gig.price else "${gig.price} ₽"
+
                 InfoRowItem(Icons.Outlined.Schedule, gig.duration)
                 InfoRowItem(Icons.Outlined.Place, gig.location)
                 InfoRowItem(
                     Icons.Outlined.CurrencyRuble,
-                    gig.price,
+                    displayPrice,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+
+
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -539,7 +713,7 @@ fun PillTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     singleLine: Boolean = true,
-    readOnly: Boolean = false // Добавили параметр readOnly
+    readOnly: Boolean = false
 ) {
     OutlinedTextField(
         value = value,
@@ -584,7 +758,7 @@ fun SearchInput(
         PillTextField(
             value = "",
             onValueChange = {},
-            readOnly = true, // Поле только для чтения, чтобы не всплывала клавиатура
+            readOnly = true,
             placeholder = "Поиск проектов...",
             leadingIcon = {
                 Icon(
@@ -594,7 +768,6 @@ fun SearchInput(
                 )
             }
         )
-        // Прозрачный слой поверх поля, который перехватывает клики
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -609,7 +782,6 @@ fun SearchInput(
 
 @Composable
 fun CategorySelector() {
-    // Оптимизация: оборачиваем в remember
     val categories = remember {
         listOf(
             Category("Все", "🔥"),
@@ -674,4 +846,6 @@ fun CategoryShip(
         }
     }
 }
+
+
 

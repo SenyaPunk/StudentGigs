@@ -13,6 +13,7 @@ import com.example.studentgigs.data.local.SessionManager
 import com.example.studentgigs.ui.theme.StudentGigsTheme
 import com.example.studentgigs.view.OnRegister.LoginAppActivity
 import com.example.studentgigs.viewmodel.AuthViewModel
+import com.example.studentgigs.viewmodel.TaskViewModel
 
 class MainAppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,11 +34,13 @@ class MainAppActivity : ComponentActivity() {
         setContent {
             StudentGigsTheme {
                 val authViewModel: AuthViewModel = viewModel()
+                val taskViewModel: TaskViewModel = viewModel()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainApp(
                         innerPadding = innerPadding,
-                        authViewModel = authViewModel
+                        authViewModel = authViewModel,
+                        taskViewModel = taskViewModel
                     )
                 }
             }

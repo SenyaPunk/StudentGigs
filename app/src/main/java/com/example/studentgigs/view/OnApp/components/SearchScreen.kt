@@ -1,5 +1,7 @@
 package com.example.studentgigs.view.OnApp.components
 
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.studentgigs.data.model.LocationType
+import com.example.studentgigs.data.model.Task
 import com.example.studentgigs.view.OnApp.HeaderCircleButton
 import com.example.studentgigs.view.OnApp.Gig
 import com.example.studentgigs.view.OnApp.PillTextField
@@ -101,35 +105,26 @@ val availableTags = listOf("React", "Python", "Kotlin", "Figma", "UI/UX", "JavaS
 val availableCities = listOf("Москва", "Санкт-Петербург", "Удалённо")
 
 // Данные для поиска - все доступные гиги
-val allGigs = listOf(
-    Gig("Landing Page для стартапа", "TechStart", "2 недели", "Удалённо", "15000", listOf("React", "Figma"), isNew = true, iconEmoji = "🚀"),
-    Gig("Анализ данных пользователей", "DataCorp", "3 недели", "Москва", "20000", listOf("Python", "SQL"), isSaved = true, iconEmoji = "📊"),
-    Gig("Мобильное приложение", "AppStudio", "1 месяц", "Удалённо", "45000", listOf("Kotlin", "Android"), isNew = true, iconEmoji = "📱"),
-    Gig("UI/UX дизайн интернет-магазина", "ShopDesign", "2 недели", "Удалённо", "25000", listOf("Figma", "UI/UX"), iconEmoji = "🎨"),
-    Gig("Backend разработка API", "ServerPro", "3 недели", "Санкт-Петербург", "35000", listOf("Python", "Django"), iconEmoji = "⚙️"),
-    Gig("React разработка панели", "AdminPanel", "2 недели", "Удалённо", "30000", listOf("React", "TypeScript"), isNew = true, iconEmoji = "💻"),
-    Gig("Телеграм бот для бизнеса", "BotMakers", "1 неделя", "Удалённо", "12000", listOf("Python", "Telegram"), iconEmoji = "🤖"),
-    Gig("Стажировка Frontend", "BigTech", "3 месяца", "Москва", "40000", listOf("JavaScript", "React"), isNew = true, iconEmoji = "🎓"),
-    Gig("Парсинг данных", "DataMine", "1 неделя", "Удалённо", "8000", listOf("Python", "Scrapy"), iconEmoji = "🔍"),
-    Gig("Верстка email рассылки", "MailPro", "3 дня", "Удалённо", "5000", listOf("HTML", "CSS"), iconEmoji = "✉️")
-)
 
 @Composable
-fun SearchScreen(onBack: () -> Unit) {
+fun SearchScreen(
+    tasks: List<Task>,
+    onBack: () -> Unit,
+    onTaskClick: (Task) -> Unit
+) {
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
-    val recentSearches = remember {
-        mutableStateListOf(
-            "React разработка",
-            "UI/UX дизайн",
-            "Python",
-            "Стажировка"
-        )
-    }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val historyManager = remember { SearchHistoryManager(context) }
+
+    var recentSearches by remember { mutableStateOf(historyManager.getHistory()) }
 
     var filters by remember { mutableStateOf(SearchFilters()) }
     var showFiltersDialog by remember { mutableStateOf(false) }
+
+
+
 
     fun removeFilter(chipData: FilterChipData) {
         filters = when (chipData.type) {
@@ -146,18 +141,16 @@ fun SearchScreen(onBack: () -> Unit) {
     }
 
     var isSearching by remember { mutableStateOf(false) }
-    var searchResults by remember { mutableStateOf<List<Gig>>(emptyList()) }
+    var searchResults by remember { mutableStateOf<List<Task>>(emptyList()) }
 
-    fun addToSearchHistory(query: String) {
-        if (query.isNotBlank() && query.length >= 2 && !recentSearches.contains(query)) {
-            recentSearches.add(0, query)
-            if (recentSearches.size > 10) {
-                recentSearches.removeLast()
-            }
-        }
-    }
 
     fun performSearch(query: String) {
+
+//        if (query.isNotBlank()) {
+//            historyManager.saveSearch(query)
+//            recentSearches = historyManager.getHistory()
+//        }
+
         if (query.isBlank() && !filters.hasActiveFilters()) {
             isSearching = false
             searchResults = emptyList()
@@ -166,30 +159,29 @@ fun SearchScreen(onBack: () -> Unit) {
 
         isSearching = true
         val queryLower = query.lowercase().trim()
+        val currentTime = System.currentTimeMillis()
 
-        searchResults = allGigs.filter { gig ->
+        searchResults = tasks.filter { task ->
+
+            // 1. Поиск по тексту
             val matchesQuery = query.isBlank() ||
-                    gig.title.lowercase().startsWith(queryLower) ||
-                    gig.title.lowercase().contains(queryLower) ||
-                    gig.company.lowercase().startsWith(queryLower) ||
-                    gig.tags.any { it.lowercase().startsWith(queryLower) } ||
-                    gig.tags.any { it.lowercase().contains(queryLower) }
+                    task.title.lowercase().contains(queryLower) ||
+                    task.employerName.lowercase().contains(queryLower) ||
+                    task.tags.any { it.lowercase().contains(queryLower) }
 
+            // 2. Локация (используем enum LocationType)
             val matchesLocation = when {
-                filters.isRemote && filters.isOffice -> true // Оба выбраны = любая
-                filters.isRemote -> gig.location == "Удалённо"
-                filters.isOffice -> gig.location != "Удалённо"
+                filters.isRemote && filters.isOffice -> true
+                filters.isRemote -> task.locationType == LocationType.REMOTE
+                filters.isOffice -> task.locationType == LocationType.OFFICE || task.locationType == LocationType.HYBRID
                 else -> true
             }
 
-            val isShort = gig.duration.contains("неделя") ||
-                    gig.duration.contains("недели") ||
-                    gig.duration.contains("дня") ||
-                    gig.duration.contains("дней")
-            val isMedium = gig.duration.contains("2 недели") ||
-                    gig.duration.contains("3 недели") ||
-                    gig.duration.contains("4 недели")
-            val isLong = gig.duration.contains("месяц")
+            // 3. Длительность (оставляем твою логику поиска по строке)
+            val durationLower = task.duration?.lowercase() ?: ""
+            val isShort = durationLower.contains("недел") || durationLower.contains("дн") || durationLower.contains("дня")
+            val isMedium = durationLower.contains("2 недели") || durationLower.contains("3 недели") || durationLower.contains("4 недели")
+            val isLong = durationLower.contains("месяц")
 
             val matchesDuration = when {
                 !filters.isShortTerm && !filters.isMediumTerm && !filters.isLongTerm -> true
@@ -198,17 +190,23 @@ fun SearchScreen(onBack: () -> Unit) {
                         (filters.isLongTerm && isLong)
             }
 
-            val gigPrice = gig.price.replace(" ", "").toIntOrNull() ?: 0
-            val matchesPrice = filters.minPrice == 0 || gigPrice >= filters.minPrice
+            // 4. Оплата (очищаем строку от букв и пробелов, оставляем только цифры)
+            val taskPrice = task.price.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
+            val matchesPrice = filters.minPrice == 0 || taskPrice >= filters.minPrice
 
-            val matchesNew = !filters.isNewOnly || gig.isNew
+            // 5. Новизна (проверка на 15 минут = 900_000 мс)
+            val isNewTask = (currentTime - task.createdAt) < 900_000L
+            val matchesNew = !filters.isNewOnly || isNewTask
 
+            // 6. Теги
             val matchesTags = filters.selectedTags.isEmpty() ||
-                    gig.tags.any { it in filters.selectedTags }
+                    task.tags.any { it in filters.selectedTags }
 
+            // 7. Города (используем поле location)
             val matchesCities = filters.selectedCities.isEmpty() ||
-                    gig.location in filters.selectedCities
+                    task.location in filters.selectedCities
 
+            // Итоговая проверка
             matchesQuery && matchesLocation && matchesDuration &&
                     matchesPrice && matchesNew && matchesTags && matchesCities
         }
@@ -251,8 +249,11 @@ fun SearchScreen(onBack: () -> Unit) {
                     }
                 },
                 onSearch = {
+                    if (searchQuery.isNotBlank()) {
+                        historyManager.saveSearch(searchQuery)
+                        recentSearches = historyManager.getHistory()
+                    }
                     performSearch(searchQuery)
-                    addToSearchHistory(searchQuery)
                     focusManager.clearFocus()
                 },
                 modifier = Modifier.weight(1f)
@@ -351,8 +352,17 @@ fun SearchScreen(onBack: () -> Unit) {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(searchResults) { gig ->
-                        SearchResultCard(gig = gig)
+                    items(searchResults) { task ->
+                        SearchResultCard(
+                            task = task,
+                            onClick = {
+                                if (searchQuery.isNotBlank()) {
+                                    historyManager.saveSearch(searchQuery)
+                                    recentSearches = historyManager.getHistory()
+                                }
+                                onTaskClick(task)
+                            }
+                        )
                     }
                 }
             }
@@ -404,10 +414,12 @@ fun SearchScreen(onBack: () -> Unit) {
                     )
 
                     if (recentSearches.isNotEmpty()) {
-                        TextButton(onClick = { recentSearches.clear() }) {
+                        TextButton(onClick = {
+                            historyManager.clearHistory()
+                            recentSearches = emptyList()
+                        }) {
                             Text(
                                 text = "Очистить всё",
-                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -437,15 +449,21 @@ fun SearchScreen(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
-                            items = recentSearches.toList(),
-                            key = { it }
+                            recentSearches
                         ) { text ->
                             HistoryItem(
                                 text = text,
-                                onDelete = { recentSearches.remove(text) },
+                                onDelete = {
+                                    historyManager.deleteSearch(text)
+                                    recentSearches = historyManager.getHistory()
+                                },
                                 onSelect = {
                                     searchQuery = text
+                                    historyManager.saveSearch(text)
+                                    recentSearches = historyManager.getHistory()
+
                                     performSearch(text)
+                                    focusManager.clearFocus()
                                 }
                             )
                         }
@@ -611,9 +629,14 @@ fun HistoryItem(text: String, onSelect: () -> Unit, onDelete: () -> Unit) {
 }
 
 @Composable
-fun SearchResultCard(gig: Gig) {
+fun SearchResultCard(task: Task, onClick: () -> Unit) {
+    val currentTime = System.currentTimeMillis()
+    val isNew = (currentTime - task.createdAt) < 900_000L
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }, // <-- Добавили клик
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -631,7 +654,7 @@ fun SearchResultCard(gig: Gig) {
                         .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(gig.iconEmoji, style = MaterialTheme.typography.headlineSmall)
+                    Text(task.iconEmoji.ifEmpty { "📋" }, style = MaterialTheme.typography.headlineSmall)
                 }
 
                 Column(
@@ -642,13 +665,13 @@ fun SearchResultCard(gig: Gig) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = gig.title,
+                            text = task.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
-                        if (gig.isNew) {
+                        if (isNew) {
                             Surface(
                                 color = MaterialTheme.colorScheme.secondary,
                                 shape = CircleShape
@@ -663,7 +686,7 @@ fun SearchResultCard(gig: Gig) {
                         }
                     }
                     Text(
-                        text = gig.company,
+                        text = task.employerName,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -674,29 +697,32 @@ fun SearchResultCard(gig: Gig) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                InfoRowItem(Icons.Outlined.Schedule, gig.duration)
-                InfoRowItem(Icons.Outlined.Place, gig.location)
+                val displayCity = task.location.split(",").first().trim().ifEmpty { "Удаленно" }
+
+                InfoRowItem(Icons.Outlined.Schedule, task.duration ?: "Не указано")
+                InfoRowItem(Icons.Outlined.LocationOn, displayCity)
                 InfoRowItem(
                     Icons.Outlined.CurrencyRuble,
-                    formatPrice(gig.price),
+                    formatPrice(task.price),
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                gig.tags.forEach { tag ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = tag,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            // Рендер тегов
+            if (task.tags.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    task.tags.take(3).forEach { tag -> // берем максимум 3 тега, чтобы не ломать верстку
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = tag,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -1018,4 +1044,35 @@ fun FilterToggleChip(
 fun formatPrice(price: String): String {
     val num = price.replace(" ", "").toIntOrNull() ?: return price
     return "%,d".format(num).replace(",", " ")
+}
+
+class SearchHistoryManager(context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("search_prefs", Context.MODE_PRIVATE)
+
+    fun getHistory(): List<String> {
+        val historyString = prefs.getString("search_history", "") ?: ""
+        return if (historyString.isEmpty()) emptyList() else historyString.split("|")
+    }
+
+    fun saveSearch(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+
+        val currentHistory = getHistory().toMutableList()
+        currentHistory.remove(trimmed)
+        currentHistory.add(0, trimmed)
+
+        val limitedHistory = currentHistory.take(10)
+        prefs.edit().putString("search_history", limitedHistory.joinToString("|")).apply()
+    }
+
+    fun deleteSearch(query: String) {
+        val currentHistory = getHistory().toMutableList()
+        currentHistory.remove(query)
+        prefs.edit().putString("search_history", currentHistory.joinToString("|")).apply()
+    }
+
+    fun clearHistory() {
+        prefs.edit().remove("search_history").apply()
+    }
 }

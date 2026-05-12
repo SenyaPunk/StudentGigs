@@ -22,14 +22,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,6 +50,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.studentgigs.data.model.User
 import com.example.studentgigs.data.model.UserRole
+import com.example.studentgigs.data.model.VerificationStatus
 import com.example.studentgigs.view.OnApp.TagItem
 import com.example.studentgigs.view.OnRegister.LoginAppActivity
 import com.example.studentgigs.viewmodel.AuthViewModel
@@ -60,7 +67,10 @@ import com.example.studentgigs.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
-    onNavigateToNotifications: () -> Unit
+    activeTasksCount: Int,
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToVerification: () -> Unit = {},
+    onNavigateToMyTasks: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by authViewModel.uiState.collectAsState()
@@ -79,11 +89,27 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(24.dp))
         ProfileHeaderCard(user = currentUser)
 
-        Spacer(modifier = Modifier.height(24.dp))
-        SkillsSection()
+        // Секция верификации для работодателей
+        if (currentUser?.role == UserRole.EMPLOYER) {
+            Spacer(modifier = Modifier.height(24.dp))
+            VerificationSection(
+                verificationStatus = currentUser.verificationStatus,
+                onVerifyClick = onNavigateToVerification
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
-        MenuSection(onNotificationClick = onNavigateToNotifications)
+        if (currentUser?.role == UserRole.STUDENT) {
+            SkillsSection()
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        MenuSection(
+            onNotificationClick = onNavigateToNotifications,
+            onMyTasksClick = onNavigateToMyTasks,
+            activeTasksCount = activeTasksCount,
+            isEmployer = currentUser?.role == UserRole.EMPLOYER
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
         ExitButton(
@@ -285,18 +311,187 @@ fun SkillsSection() {
 }
 
 @Composable
-fun MenuSection(onNotificationClick: () -> Unit) {
+fun VerificationSection(
+    verificationStatus: VerificationStatus,
+    onVerifyClick: () -> Unit
+) {
+    when (verificationStatus) {
+        VerificationStatus.NOT_VERIFIED -> {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFFF3E0)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color(0xFFFFE0B2), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFE65100),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Профиль не подтвержден",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE65100)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Для публикации заданий пройдите верификацию",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFF57C00)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onVerifyClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE65100)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.VerifiedUser,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Подтвердить профиль",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+        VerificationStatus.PENDING -> {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFE3F2FD)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0xFFBBDEFB), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = Color(0xFF1565C0),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Проверка документов",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1565C0)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Ваша заявка обрабатывается",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF1976D2)
+                        )
+                    }
+                }
+            }
+        }
+        VerificationStatus.VERIFIED -> {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFE8F5E9)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0xFFC8E6C9), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Профиль верифицирован",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Вы можете публиковать задания",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF388E3C)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MenuSection(
+    onNotificationClick: () -> Unit,
+    onMyTasksClick: () -> Unit,
+    activeTasksCount: Int,
+    isEmployer: Boolean = false
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column {
-            ProfileMenuItem(icon = Icons.Outlined.WorkOutline, title = "Мои проекты", badgeCount = 3)
+            ProfileMenuItem(
+                icon = Icons.Outlined.WorkOutline,
+                title = if (isEmployer) "Мои задания" else "Мои проекты",
+                badgeCount = if (activeTasksCount > 0) activeTasksCount else null,
+                onClick = onMyTasksClick
+            )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
-            ProfileMenuItem(icon = Icons.Outlined.Article, title = "Портфолио")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+            if (!isEmployer) {
+                ProfileMenuItem(icon = Icons.Outlined.Article, title = "Портфолио")
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+            }
 
             ProfileMenuItem(icon = Icons.Outlined.Star, title = "Отзывы", badgeCount = 5)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)

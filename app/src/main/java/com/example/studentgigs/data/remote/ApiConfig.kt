@@ -1,6 +1,5 @@
 package com.example.studentgigs.data.remote
 
-
 object ApiConfig {
     const val BASE_URL = "http://46.173.28.109/api/"
 
@@ -17,4 +16,14 @@ object ApiConfig {
     // Task Endpoints
     const val CREATE_TASK = "create_task.php"
     const val GET_TASKS = "get_tasks.php"
+
+    // Application Endpoints (отклики студентов)
+    const val APPLY_TASK = "apply_task.php"
+    const val GET_APPLICATIONS = "get_applications.php"
+
+    // Application Endpoints (работодатель)
+    const val GET_TASK_APPLICATIONS = "get_task_applications.php"
+    const val ACCEPT_APPLICATION = "accept_application.php"
+    const val REJECT_APPLICATION = "reject_application.php"
+    const val GET_STUDENT_PROFILE = "get_student_profile.php"
 }

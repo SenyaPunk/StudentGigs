@@ -3,7 +3,10 @@
  * Создание нового задания/вакансии/услуги
  */
 
+error_reporting(0);
+ob_start();
 require_once 'config.php';
+ob_end_clean();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendResponse(false, 'Метод не поддерживается');

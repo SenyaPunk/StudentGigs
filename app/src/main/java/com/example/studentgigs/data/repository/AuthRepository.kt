@@ -93,7 +93,7 @@ class AuthRepository(context: Context) {
         )
 
         val userId = if (serverResult?.success == true && serverResult.data != null) {
-            val serverUserId = serverResult.data.optLong("user_id", 0)
+            val serverUserId = serverResult.data!!.optLong("user_id", 0)
             if (serverUserId > 0) {
                 userDao.insertUserWithId(user.copy(id = serverUserId))
                 serverUserId
@@ -165,7 +165,7 @@ class AuthRepository(context: Context) {
         )
 
         val userId = if (serverResult?.success == true && serverResult.data != null) {
-            val serverUserId = serverResult.data.optLong("user_id", 0)
+            val serverUserId = serverResult.data!!.optLong("user_id", 0)
             if (serverUserId > 0) {
                 userDao.insertUserWithId(user.copy(id = serverUserId))
                 serverUserId
@@ -187,35 +187,26 @@ class AuthRepository(context: Context) {
 
     // Вход в систему
     suspend fun login(email: String, password: String): AuthResult = withContext(Dispatchers.IO) {
-        if (email.isBlank()) {
-            return@withContext AuthResult.Error("Введите email")
-        }
-        if (password.isBlank()) {
-            return@withContext AuthResult.Error("Введите пароль")
-        }
+        if (email.isBlank()) return@withContext AuthResult.Error("Введите email")
+        if (password.isBlank()) return@withContext AuthResult.Error("Введите пароль")
 
-        // Сначала пробуем локально
-        val localUser = userDao.getUserByEmail(email)
-
-        if (localUser != null) {
-            if (localUser.passwordHash != hashPassword(password)) {
-                return@withContext AuthResult.Error("Неверный пароль")
-            }
-            saveSession(localUser)
-            return@withContext AuthResult.Success(localUser)
-        }
-
-        // Если локально нет - пробуем с сервера
+        // Всегда сначала идём на сервер — чтобы получить актуальный ID и статус верификации
         val serverResult = try {
             apiClient.login(email, password)
         } catch (e: Exception) {
-            Log.w(TAG, "Ошибка сервера при входе: ${e.message}")
+            Log.w(TAG, "Сервер недоступен при входе: ${e.message}")
             null
         }
 
         if (serverResult?.success == true && serverResult.data != null) {
-            val userResponse = UserResponse.fromJson(serverResult.data)
-            if (userResponse != null) {
+            val userResponse = UserResponse.fromJson(serverResult.data!!)
+            if (userResponse != null && userResponse.id > 0) {
+                val verificationStatus = try {
+                    VerificationStatus.valueOf(userResponse.verificationStatus)
+                } catch (e: Exception) {
+                    VerificationStatus.NOT_VERIFIED
+                }
+
                 val user = User(
                     id = userResponse.id,
                     email = userResponse.email,
@@ -224,16 +215,29 @@ class AuthRepository(context: Context) {
                     fullName = userResponse.fullName,
                     companyName = userResponse.companyName,
                     companyPosition = userResponse.companyPosition,
+                    verificationStatus = verificationStatus,
                     createdAt = userResponse.createdAt
                 )
-                // Сохраняем локально для оффлайн доступа
+
+                // Сохраняем/обновляем локально с серверным ID
                 userDao.insertUserWithId(user)
                 saveSession(user)
                 return@withContext AuthResult.Success(user)
             }
         }
 
-        AuthResult.Error("Пользователь не найден")
+        // Сервер недоступен — пробуем локально (офлайн-режим)
+        val localUser = userDao.getUserByEmail(email)
+        if (localUser != null) {
+            if (localUser.passwordHash != hashPassword(password)) {
+                return@withContext AuthResult.Error("Неверный пароль")
+            }
+            saveSession(localUser)
+            Log.w(TAG, "Вход выполнен офлайн для userId=${localUser.id}")
+            return@withContext AuthResult.Success(localUser)
+        }
+
+        AuthResult.Error("Пользователь не найден. Проверьте подключение к интернету")
     }
 
     // ВЫход из системы
@@ -312,8 +316,8 @@ class AuthRepository(context: Context) {
         }
 
         if (serverResult?.success == true && serverResult.data != null) {
-            val statusStr = serverResult.data.optString("verification_status", "NOT_VERIFIED")
-            val remainingTime = serverResult.data.optLong("remaining_time_ms", 0)
+            val statusStr = serverResult.data!!.optString("verification_status", "NOT_VERIFIED")
+            val remainingTime = serverResult.data!!.optLong("remaining_time_ms", 0)
             val status = try {
                 VerificationStatus.valueOf(statusStr)
             } catch (e: Exception) {

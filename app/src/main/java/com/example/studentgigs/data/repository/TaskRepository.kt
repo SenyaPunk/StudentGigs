@@ -50,44 +50,22 @@ class TaskRepository(context: Context) {
         schedule: String? = null,
         serviceCategory: String? = null
     ): TaskResult = withContext(Dispatchers.IO) {
-        // Валидация
         when {
-            // Базовая информация
             title.isBlank() -> return@withContext TaskResult.Error("Введите название")
             title.length < 5 -> return@withContext TaskResult.Error("Название слишком короткое (минимум 5 симв.)")
-
             description.isBlank() -> return@withContext TaskResult.Error("Введите описание")
             description.length < 20 -> return@withContext TaskResult.Error("Описание слишком короткое (минимум 20 симв.)")
-
-            // Списки (Requirements, Benefits, Tags)
             requirements.isEmpty() || requirements.all { it.isBlank() } ->
                 return@withContext TaskResult.Error("Добавьте хотя бы одно требование")
-
             benefits.isEmpty() || benefits.all { it.isBlank() } ->
                 return@withContext TaskResult.Error("Укажите преимущества")
-
             tags.isEmpty() ->
                 return@withContext TaskResult.Error("Выберите хотя бы один тег")
-
-            // Оплата и время
             price.isBlank() -> return@withContext TaskResult.Error("Укажите стоимость")
             duration.isBlank() -> return@withContext TaskResult.Error("Укажите длительность выполнения")
-
-            // Местоположение
-            // location.isBlank() -> return@withContext TaskResult.Error("Укажите местоположение или адрес")
-
-            // Дополнительные поля (nullable в сигнатуре, но обязательные по вашему требованию)
-            // employmentType == null -> return@withContext TaskResult.Error("Выберите тип занятости")
-            // schedule.isNullOrBlank() -> return@withContext TaskResult.Error("Укажите график работы")
-            // serviceCategory.isNullOrBlank() -> return@withContext TaskResult.Error("Выберите категорию услуг")
-
-
-
-            // Идентификатор работодателя
             employerId <= 0 -> return@withContext TaskResult.Error("Ошибка идентификации пользователя")
         }
 
-        // Попытка отправить на сервер
         val serverResult = try {
             apiClient.createTask(
                 employerId = employerId,
@@ -117,7 +95,6 @@ class TaskRepository(context: Context) {
             return@withContext TaskResult.Error(serverResult.message ?: "Ошибка при создании задания")
         }
 
-        // Создаем задание локально
         val task = Task(
             employerId = employerId,
             employerName = "Заказчик",
@@ -140,7 +117,7 @@ class TaskRepository(context: Context) {
         )
 
         val taskId = if (serverResult?.success == true && serverResult.data != null) {
-            val serverTaskId = serverResult.data.optLong("task_id", 0)
+            val serverTaskId = serverResult.data!!.optLong("task_id", 0)
             if (serverTaskId > 0) serverTaskId else taskDao.insertTask(task)
         } else {
             taskDao.insertTask(task)
@@ -156,20 +133,26 @@ class TaskRepository(context: Context) {
     // Получение заданий работодателя
     suspend fun getEmployerTasks(employerId: Long): TaskResult = withContext(Dispatchers.IO) {
         try {
-            // Пробуем получить с сервера
             val serverResult = try {
                 apiClient.getTasks(employerId = employerId)
-            } catch (e: Exception) {
-                Log.w(TAG, "Ошибка сервера: ${e.message}")
-                null
+            } catch (e: Exception) { null }
+
+            if (serverResult?.success == true && serverResult.data != null) {
+                val tasksArray = serverResult.data!!.optJSONArray("tasks")
+                if (tasksArray != null && tasksArray.length() > 0) {
+                    val tasksList = mutableListOf<Task>()
+                    for (i in 0 until tasksArray.length()) {
+                        tasksList.add(parseTaskJson(tasksArray.getJSONObject(i)))
+                    }
+                    // ИСПРАВЛЕНО: НЕ сохраняем в локальную БД — это вызывало дубликаты
+                    return@withContext TaskResult.Success(tasks = tasksList)
+                }
             }
 
-            // Если сервер доступен, возвращаем его данные
-            // Иначе берем из локальной БД
+            // Фолбэк: локальная БД
             val tasks = taskDao.getTasksByEmployerId(employerId)
             TaskResult.Success(tasks = tasks)
         } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при получении заданий: ${e.message}", e)
             TaskResult.Error("Ошибка при получении заданий")
         }
     }
@@ -178,58 +161,26 @@ class TaskRepository(context: Context) {
     suspend fun getAllActiveTasks(): TaskResult = withContext(Dispatchers.IO) {
         try {
             val serverResult = try {
-                apiClient.getTasks() // Вызывает ваш POST запрос к get_tasks.php
+                apiClient.getTasks()
             } catch (e: Exception) {
                 Log.e(TAG, "Ошибка сети: ${e.message}")
                 null
             }
 
             if (serverResult != null && serverResult.success) {
-                val tasksList = mutableListOf<Task>()
-
-                // Извлекаем массив "tasks" из поля "data"
                 val tasksArray = serverResult.data?.optJSONArray("tasks")
-
                 if (tasksArray != null) {
+                    val tasksList = mutableListOf<Task>()
                     for (i in 0 until tasksArray.length()) {
-                        val taskJson = tasksArray.getJSONObject(i)
-
-                        // Вручную создаем объект Task из JSON
-                        val task = Task(
-                            id = taskJson.optLong("id", 0),
-                            employerId = taskJson.optLong("employer_id", 0),
-                            employerName = taskJson.optString("employer_name", "Компания не указана"),
-                            employerPosition = taskJson.optString("employer_position", null),
-                            type = TaskType.valueOf(taskJson.optString("type", "TASK")),
-                            title = taskJson.optString("title", ""),
-                            description = taskJson.optString("description", ""),
-                            requirements = taskJson.optString("requirements", "").split("|").filter { it.isNotBlank() },
-                            benefits = taskJson.optString("benefits", "").split("|").filter { it.isNotBlank() },
-                            tags = taskJson.optString("tags", "").split("|").filter { it.isNotBlank() },
-                            price = taskJson.optString("price", ""),
-                            iconEmoji = taskJson.optString("icon_emoji", "📋"),
-                            location = taskJson.optString("location", ""),
-                            locationType = LocationType.valueOf(taskJson.optString("location_type", "REMOTE")),
-                            createdAt = taskJson.optLong("created_at", System.currentTimeMillis()),
-                            employmentType = taskJson.optString("employment_type", null)?.let {
-                                if (it != "null") EmploymentType.valueOf(it) else null
-                            },
-                            schedule = taskJson.optString("schedule", null),
-                            serviceCategory = taskJson.optString("service_category", null),
-                            duration = taskJson.optString("duration", ""),
-                            // Добавьте остальные поля, если они нужны для отображения
-                        )
-                        tasksList.add(task)
+                        tasksList.add(parseTaskJson(tasksArray.getJSONObject(i)))
                     }
-
-                    // Если данные пришли, обновляем локальную БД (чтобы после перезапуска работало)
-                    tasksList.forEach { taskDao.insertTask(it) }
-
+                    // ИСПРАВЛЕНО: НЕ сохраняем в локальную БД чтобы избежать дубликатов.
+                    // Локальная БД используется только как фолбэк при отсутствии сети.
                     return@withContext TaskResult.Success(tasks = tasksList)
                 }
             }
 
-            // Если сервер не ответил, берем из локальной БД
+            // Фолбэк: локальная БД
             val localTasks = taskDao.getAllActiveTasks()
             TaskResult.Success(tasks = localTasks)
 
@@ -243,11 +194,8 @@ class TaskRepository(context: Context) {
     suspend fun deleteTask(taskId: Long): TaskResult = withContext(Dispatchers.IO) {
         try {
             val result = taskDao.deleteTask(taskId)
-            if (result > 0) {
-                TaskResult.Success()
-            } else {
-                TaskResult.Error("Задание не найдено")
-            }
+            if (result > 0) TaskResult.Success()
+            else TaskResult.Error("Задание не найдено")
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при удалении задания: ${e.message}", e)
             TaskResult.Error("Ошибка при удалении задания")
@@ -258,14 +206,63 @@ class TaskRepository(context: Context) {
     suspend fun closeTask(taskId: Long): TaskResult = withContext(Dispatchers.IO) {
         try {
             val result = taskDao.updateTaskStatus(taskId, TaskStatus.CLOSED)
-            if (result > 0) {
-                TaskResult.Success()
-            } else {
-                TaskResult.Error("Задание не найдено")
-            }
+            if (result > 0) TaskResult.Success()
+            else TaskResult.Error("Задание не найдено")
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при закрытии задания: ${e.message}", e)
             TaskResult.Error("Ошибка при закрытии задания")
         }
+    }
+
+    // ─────────────────────────────────────────────
+    // Общий парсер JSON → Task
+    // ─────────────────────────────────────────────
+    private fun parseTaskJson(taskJson: org.json.JSONObject): Task {
+        val type = try {
+            TaskType.valueOf(taskJson.optString("type", "TASK"))
+        } catch (e: Exception) { TaskType.TASK }
+
+        val priceType = try {
+            PriceType.valueOf(taskJson.optString("price_type", "FIXED"))
+        } catch (e: Exception) { PriceType.FIXED }
+
+        val locationType = try {
+            LocationType.valueOf(taskJson.optString("location_type", "REMOTE"))
+        } catch (e: Exception) { LocationType.REMOTE }
+
+        val status = try {
+            TaskStatus.valueOf(taskJson.optString("status", "ACTIVE"))
+        } catch (e: Exception) { TaskStatus.ACTIVE }
+
+        val empType = taskJson.optString("employment_type", "").let {
+            if (it.isBlank() || it == "null") null
+            else try { EmploymentType.valueOf(it) } catch (e: Exception) { null }
+        }
+
+        return Task(
+            id              = taskJson.optLong("id", 0),
+            employerId      = taskJson.optLong("employer_id", 0),
+            employerName    = taskJson.optString("employer_name", "Компания не указана"),
+            employerPosition= taskJson.optString("employer_position", "").takeIf { it.isNotBlank() },
+            type            = type,
+            title           = taskJson.optString("title", ""),
+            description     = taskJson.optString("description", ""),
+            requirements    = taskJson.optString("requirements", "").split("|").filter { it.isNotBlank() },
+            benefits        = taskJson.optString("benefits", "").split("|").filter { it.isNotBlank() },
+            tags            = taskJson.optString("tags", "").split("|").filter { it.isNotBlank() },
+            price           = taskJson.optString("price", ""),
+            priceType       = priceType,
+            duration        = taskJson.optString("duration", ""),
+            location        = taskJson.optString("location", ""),
+            locationType    = locationType,
+            deadline        = taskJson.optLong("deadline", 0).takeIf { it != 0L },
+            status          = status,
+            createdAt       = taskJson.optLong("created_at", System.currentTimeMillis()),
+            responsesCount  = taskJson.optInt("responses_count", 0),
+            iconEmoji       = taskJson.optString("icon_emoji", "📋"),
+            employmentType  = empType,
+            schedule        = taskJson.optString("schedule", "").takeIf { it.isNotBlank() },
+            serviceCategory = taskJson.optString("service_category", "").takeIf { it.isNotBlank() }
+        )
     }
 }

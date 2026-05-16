@@ -224,21 +224,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val userId = uiState.value.currentUser?.id ?: return
 
         viewModelScope.launch {
-            val result = authRepository.checkVerificationStatus(userId)
-
-            if (result is VerificationResult.Success) {
-                _uiState.value = _uiState.value.copy(
-                    verificationStatus = result.status,
-                    verificationRemainingTime = result.remainingTimeMs
-                )
-
-                // ЕСЛИ ВЕРИФИКАЦИЯ ЗАВЕРШЕНА — ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ
-                if (result.status == VerificationStatus.VERIFIED) {
-                    refreshCurrentUser()
-                } else if (result.status == VerificationStatus.PENDING) {
-                    // Если все еще ждем, проверяем снова через 5 секунд
-                    delay(5000)
-                    checkVerificationStatus()
+            // Цикл вместо рекурсии
+            while (true) {
+                val result = authRepository.checkVerificationStatus(userId)
+                if (result is VerificationResult.Success) {
+                    _uiState.value = _uiState.value.copy(
+                        verificationStatus = result.status,
+                        verificationRemainingTime = result.remainingTimeMs
+                    )
+                    if (result.status == VerificationStatus.VERIFIED) {
+                        refreshCurrentUser()
+                        break // останавливаемся
+                    } else if (result.status == VerificationStatus.PENDING) {
+                        delay(5000)
+                        // продолжаем цикл
+                    } else {
+                        break
+                    }
+                } else {
+                    break
                 }
             }
         }

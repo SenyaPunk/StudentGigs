@@ -25,20 +25,21 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.studentgigs.data.model.Task
+import com.example.studentgigs.data.model.TaskStatus
 import com.example.studentgigs.view.OnApp.HeaderCircleButton
 
 @Composable
 fun EmployerTasksScreen(
     tasks: List<Task>,
-    currentEmployerId: Long, // Убедитесь, что тип совпадает с ID в вашей модели
+    currentEmployerId: Long,
     onBack: () -> Unit,
     onTaskClick: (Task) -> Unit
 ) {
     val myTasks = tasks.filter { it.employerId == currentEmployerId }
 
-    // Используем .toString() если статус это Enum, или прямое сравнение
-    val activeTasks = myTasks.filter { it.status.toString() == "ACTIVE" }
-    val completedTasks = myTasks.filter { it.status.toString() == "COMPLETED" }
+    // ИСПРАВЛЕНО: TaskStatus.CLOSED вместо строки "COMPLETED" (которой не существует в enum)
+    val activeTasks = myTasks.filter { it.status == TaskStatus.ACTIVE }
+    val closedTasks = myTasks.filter { it.status == TaskStatus.CLOSED }
 
     Column(
         modifier = Modifier
@@ -48,7 +49,6 @@ fun EmployerTasksScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ВЕРХНЯЯ ПАНЕЛЬ (Кнопка + Заголовок)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -59,9 +59,7 @@ fun EmployerTasksScreen(
                 iconColor = MaterialTheme.colorScheme.onSurface,
                 onClick = onBack
             )
-
             Spacer(modifier = Modifier.width(16.dp))
-
             Text(
                 text = "Мои задания",
                 style = MaterialTheme.typography.titleLarge,
@@ -71,7 +69,6 @@ fun EmployerTasksScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // СПИСОК (Вне Row, внутри основного Column)
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -84,10 +81,10 @@ fun EmployerTasksScreen(
                 }
             }
 
-            if (completedTasks.isNotEmpty()) {
+            if (closedTasks.isNotEmpty()) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
-                item { SectionHeader("Завершенные", completedTasks.size) }
-                items(completedTasks) { task ->
+                item { SectionHeader("Завершённые", closedTasks.size) }
+                items(closedTasks) { task ->
                     Box(modifier = Modifier.alpha(0.7f)) {
                         SearchResultCard(task = task, onClick = { onTaskClick(task) })
                     }
@@ -119,7 +116,16 @@ fun SectionHeader(title: String, count: Int) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Text("$count", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            "$count",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

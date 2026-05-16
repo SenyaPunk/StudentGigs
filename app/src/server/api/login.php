@@ -1,9 +1,8 @@
 <?php
-/**
- * Авторизация пользователя
- */
-
+error_reporting(0);
+ob_start();
 require_once 'config.php';
+ob_end_clean();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendResponse(false, 'Метод не поддерживается');
@@ -11,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $data = getJsonInput();
 
-$email = trim(strtolower($data['email'] ?? ''));
+$email    = trim(strtolower($data['email'] ?? ''));
 $password = $data['password'] ?? '';
 
 if (empty($email) || empty($password)) {
@@ -21,7 +20,6 @@ if (empty($email) || empty($password)) {
 try {
     $pdo = getDbConnection();
 
-    // Поиск пользователя
     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
@@ -30,23 +28,20 @@ try {
         sendResponse(false, 'Пользователь не найден');
     }
 
-    // Проверка пароля
-    $passwordHash = hash('sha256', $password);
-
-    if ($user['password_hash'] !== $passwordHash) {
+    if ($user['password_hash'] !== hash('sha256', $password)) {
         sendResponse(false, 'Неверный пароль');
     }
 
-    // Успешная авторизация
-    sendResponse(true, 'Авторизация успешна', [
-        'id' => (int)$user['id'],
-        'email' => $user['email'],
-        'role' => $user['role'],
-        'full_name' => $user['full_name'],
-        'company_name' => $user['company_name'],
-        'company_position' => $user['company_position'],
-        'created_at' => (int)$user['created_at']
-    ]);
+    sendResponse(true, 'Авторизация успешна', array(
+        'id'                  => (int)$user['id'],
+        'email'               => $user['email'],
+        'role'                => $user['role'],
+        'full_name'           => $user['full_name'],
+        'company_name'        => $user['company_name'],
+        'company_position'    => $user['company_position'],
+        'verification_status' => $user['verification_status'] ?? 'NOT_VERIFIED',
+        'created_at'          => (int)$user['created_at']
+    ));
 
 } catch (PDOException $e) {
     sendResponse(false, 'Ошибка при авторизации');

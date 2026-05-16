@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.studentgigs.data.local.SessionManager
 import com.example.studentgigs.ui.theme.StudentGigsTheme
 import com.example.studentgigs.view.OnRegister.LoginAppActivity
+import com.example.studentgigs.viewmodel.ApplicationViewModel
 import com.example.studentgigs.viewmodel.AuthViewModel
 import com.example.studentgigs.viewmodel.TaskViewModel
 
@@ -19,10 +20,8 @@ class MainAppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Проверяем авторизацию
         val sessionManager = SessionManager.getInstance(this)
         if (!sessionManager.isLoggedIn()) {
-            // Переходим на экран входа
             val intent = Intent(this, LoginAppActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
@@ -35,12 +34,14 @@ class MainAppActivity : ComponentActivity() {
             StudentGigsTheme {
                 val authViewModel: AuthViewModel = viewModel()
                 val taskViewModel: TaskViewModel = viewModel()
+                val applicationViewModel: ApplicationViewModel = viewModel()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainApp(
                         innerPadding = innerPadding,
                         authViewModel = authViewModel,
-                        taskViewModel = taskViewModel
+                        taskViewModel = taskViewModel,
+                        applicationViewModel = applicationViewModel
                     )
                 }
             }

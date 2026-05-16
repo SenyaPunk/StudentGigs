@@ -79,14 +79,20 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.example.studentgigs.data.model.Application
+import com.example.studentgigs.data.model.ApplicationStatus
 import com.example.studentgigs.data.model.UserRole
 import com.example.studentgigs.data.model.VerificationStatus
 import com.example.studentgigs.view.OnApp.components.CreateTaskScreen
+import com.example.studentgigs.view.OnApp.components.EmployerTaskApplicationsScreen
 import com.example.studentgigs.view.OnApp.components.EmployerTasksScreen
 import com.example.studentgigs.view.OnApp.components.NotificationScreen
 import com.example.studentgigs.view.OnApp.components.ProfileScreen
 import com.example.studentgigs.view.OnApp.components.SearchScreen
 import com.example.studentgigs.view.OnApp.components.VerificationScreen
+import com.example.studentgigs.view.OnApp.components.StudentMyProjectsScreen
+import com.example.studentgigs.view.OnApp.components.StudentProfileViewScreen
+import com.example.studentgigs.viewmodel.ApplicationViewModel
 import com.example.studentgigs.viewmodel.AuthViewModel
 import com.example.studentgigs.viewmodel.TaskViewModel
 
@@ -94,7 +100,6 @@ data class Category(
     val name: String,
     val icon: String
 )
-
 data class Gig(
     val title: String,
     val company: String,
@@ -107,48 +112,76 @@ data class Gig(
     val iconEmoji: String
 )
 
-sealed class BottomNavItem(
-    val title: String,
-    val icon: ImageVector,
-    val route: String
-) {
-    object Home : BottomNavItem("Главная", Icons.Rounded.Home, "home")
-    object Search : BottomNavItem("Поиск", Icons.Rounded.Search, "search")
-    object Saved : BottomNavItem("Избранное", Icons.Rounded.Bookmark, "saved")
-    object Profile : BottomNavItem("Профиль", Icons.Rounded.Person, "profile")
+sealed class BottomNavItem(val title: String, val icon: ImageVector, val route: String) {
+    object Home    : BottomNavItem("Главная",  Icons.Rounded.Home,    "home")
+    object Search  : BottomNavItem("Поиск",    Icons.Rounded.Search,  "search")
+    object Saved   : BottomNavItem("Избранное",Icons.Rounded.Bookmark,"saved")
+    object Profile : BottomNavItem("Профиль",  Icons.Rounded.Person,  "profile")
 }
 
 @Composable
 fun MainApp(
     innerPadding: PaddingValues,
     authViewModel: AuthViewModel,
-    taskViewModel: TaskViewModel
+    taskViewModel: TaskViewModel,
+    applicationViewModel: ApplicationViewModel
 ) {
     var currentRoute by remember { mutableStateOf("home") }
     var selectedTask by remember { mutableStateOf<com.example.studentgigs.data.model.Task?>(null) }
 
+    // ── НОВОЕ: флаг "работодатель смотрит своё задание" и выбранный отклик
+    var isViewingOwnTask    by remember { mutableStateOf(false) }
+    var selectedApplication by remember { mutableStateOf<com.example.studentgigs.data.model.Application?>(null) }
+
     val uiState by authViewModel.uiState.collectAsState()
     val currentUser = uiState.currentUser
-    val userName = currentUser?.shortName ?: "гость"
+    val userName  = currentUser?.shortName ?: "гость"
     val isEmployer = currentUser?.role == UserRole.EMPLOYER
+    val isStudent  = currentUser?.role == UserRole.STUDENT
     val isVerified = currentUser?.verificationStatus == VerificationStatus.VERIFIED
 
     val taskUiState by taskViewModel.uiState.collectAsState()
+    val appUiState  by applicationViewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         taskViewModel.loadAllActiveTasks()
     }
+
+    LaunchedEffect(currentUser?.id) {
+        if (isStudent && currentUser != null) {
+            applicationViewModel.loadApplications(currentUser.id)
+        }
+    }
+
     LaunchedEffect(taskUiState.createSuccess) {
         if (taskUiState.createSuccess) {
-            // Задание создано успешно -> обновляем список с сервера
             taskViewModel.loadAllActiveTasks()
-            // Сбрасываем флаг, чтобы при следующем входе эффект не сработал лишний раз
             taskViewModel.clearCreateSuccess()
         }
     }
 
+    // ── НОВОЕ: загружаем отклики когда входим на экран списка откликов
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == "employer_task_applications") {
+            val task = selectedTask ?: return@LaunchedEffect
+            val user = currentUser ?: return@LaunchedEffect
+            applicationViewModel.loadTaskApplications(task.id, user.id)
+        }
+    }
+
     BackHandler(enabled = currentRoute != "home") {
-        currentRoute = "home"
+        when (currentRoute) {
+            "student_profile_view"          -> currentRoute = "employer_task_applications"
+            "employer_task_applications"    -> currentRoute = "gig_details"
+            "gig_details"                   -> {
+                val wasOwn = isViewingOwnTask
+                isViewingOwnTask = false
+                currentRoute = if (wasOwn) "employer_tasks" else "home"
+            }
+            "employer_tasks"                -> currentRoute = "profile"
+            "student_my_projects"           -> currentRoute = "profile"
+            else                            -> currentRoute = "home"
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -163,6 +196,7 @@ fun MainApp(
         ) { route ->
 
             when (route) {
+                // ── Главная ────────────────────────────────────────────────
                 "home" -> {
                     Column(
                         modifier = Modifier
@@ -177,60 +211,107 @@ fun MainApp(
                             isEmployer = isEmployer,
                             isVerified = isVerified,
                             onAddTaskClick = {
-                                if (isVerified) {
-                                    currentRoute = "create_task"
-                                } else {
-                                    currentRoute = "verification"
-                                }
+                                if (isVerified) currentRoute = "create_task"
+                                else currentRoute = "verification"
                             }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         MediumContainer(
                             tasks = taskUiState.tasks,
-                            onGigClick = {clickedTask ->
+                            onGigClick = { clickedTask ->
                                 selectedTask = clickedTask
+                                isViewingOwnTask = false   // с главной — не своё задание
                                 currentRoute = "gig_details"
                             }
                         )
                     }
                 }
+
+                // ── Карточка задания ───────────────────────────────────────
+                // ИЗМЕНЕНО: добавлены isEmployerOwner и onGoToTask
                 "gig_details" -> {
+
+
                     selectedTask?.let { task ->
                         GigScreen(
                             task = task,
-                            onBack = { currentRoute = "home" }
+                            onBack = {
+                                if (isViewingOwnTask) {
+                                    currentRoute = "employer_tasks"
+                                } else {
+                                    isViewingOwnTask = false
+                                    currentRoute = "home"
+                                }
+                            },
+                            isStudent = isStudent,
+                            isApplied = appUiState.appliedTaskIds.contains(task.id),
+                            isApplying = appUiState.applyingTaskId == task.id,
+                            errorMessage = appUiState.error,
+                            onApply = {
+                                currentUser?.let { user ->
+                                    applicationViewModel.applyToTask(user.id, task.id)
+                                }
+                            },
+                            onClearError = { applicationViewModel.clearError() },
+                            isEmployerOwner = isViewingOwnTask,                        // НОВОЕ
+                            onGoToTask = { currentRoute = "employer_task_applications" } // НОВОЕ
                         )
                     }
                 }
+
+                // ── Поиск ─────────────────────────────────────────────────
                 "search" -> {
                     SearchScreen(
                         tasks = taskUiState.tasks,
                         onBack = { currentRoute = "home" },
                         onTaskClick = { clickedTask ->
                             selectedTask = clickedTask
+                            isViewingOwnTask = false
                             currentRoute = "gig_details"
                         }
                     )
                 }
+
                 "saved" -> {
                     Text("Сохраненные проекты", modifier = Modifier.padding(16.dp))
                 }
+
+                // ── Профиль ───────────────────────────────────────────────
                 "profile" -> {
                     val activeCount = taskUiState.tasks.count {
                         it.employerId == currentUser?.id && it.status.toString() == "ACTIVE"
                     }
-
                     ProfileScreen(
                         authViewModel = authViewModel,
-                        activeTasksCount = activeCount,
+                        activeTasksCount = if (isEmployer) activeCount else appUiState.applications.size,
                         onNavigateToNotifications = { currentRoute = "notification" },
-                        onNavigateToVerification = { currentRoute = "verification" },
-                        onNavigateToMyTasks = { currentRoute = "employer_tasks" }
+                        onNavigateToVerification  = { currentRoute = "verification" },
+                        onNavigateToMyTasks = {
+                            if (isStudent) currentRoute = "student_my_projects"
+                            else currentRoute = "employer_tasks"
+                        }
                     )
                 }
+
+                // ── Мои проекты (студент) ─────────────────────────────────
+                "student_my_projects" -> {
+                    StudentMyProjectsScreen(
+                        applicationViewModel = applicationViewModel,
+                        onBack = { currentRoute = "profile" },
+                        onTaskClick = { clickedTask ->
+                            selectedTask = clickedTask
+                            isViewingOwnTask = false
+                            currentRoute = "gig_details"
+                        }
+                    )
+                }
+
+                // ── Уведомления ───────────────────────────────────────────
                 "notification" -> {
                     NotificationScreen(onBack = { currentRoute = "home" })
                 }
+
+                // ── Верификация ───────────────────────────────────────────
                 "verification" -> {
                     VerificationScreen(
                         authViewModel = authViewModel,
@@ -241,6 +322,8 @@ fun MainApp(
                         }
                     )
                 }
+
+                // ── Создать задание ────────────────────────────────────────
                 "create_task" -> {
                     currentUser?.let { user ->
                         CreateTaskScreen(
@@ -251,6 +334,9 @@ fun MainApp(
                         )
                     }
                 }
+
+                // ── Мои задания (работодатель) ────────────────────────────
+                // ИЗМЕНЕНО: ставим isViewingOwnTask = true при клике
                 "employer_tasks" -> {
                     currentUser?.let { user ->
                         EmployerTasksScreen(
@@ -259,20 +345,78 @@ fun MainApp(
                             onBack = { currentRoute = "profile" },
                             onTaskClick = { clickedTask ->
                                 selectedTask = clickedTask
+                                isViewingOwnTask = true   // ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
                                 currentRoute = "gig_details"
                             }
+                        )
+                    }
+                }
+
+                // ── НОВЫЙ: Список откликов на задание (работодатель) ──────
+                "employer_task_applications" -> {
+                    selectedTask?.let { task ->
+                        EmployerTaskApplicationsScreen(
+                            task = task,
+                            applications = appUiState.taskApplications,
+                            isLoading = appUiState.isLoadingTaskApplications,
+                            errorMessage = appUiState.error,
+                            onBack = { currentRoute = "gig_details" },
+                            onStudentClick = { application ->
+                                selectedApplication = application
+                                currentRoute = "student_profile_view"
+                            },
+                            onClearError = { applicationViewModel.clearError() }
+                        )
+                    }
+                }
+
+                // ── НОВЫЙ: Профиль студента (работодатель смотрит) ────────
+                "student_profile_view" -> {
+                    val application = selectedApplication
+                    val task = selectedTask
+                    if (application != null && task != null && currentUser != null) {
+                        StudentProfileViewScreen(
+                            application = application,
+                            hasAcceptedApplicant = applicationViewModel.hasAcceptedApplicant(task.id)
+                                    && application.status != ApplicationStatus.IN_PROGRESS,
+                            isAccepting = appUiState.acceptingApplicationId == application.applicationId,
+                            isRejecting = appUiState.rejectingApplicationId == application.applicationId,
+                            errorMessage = appUiState.error,
+                            onBack = { currentRoute = "employer_task_applications" },
+                            onAccept = {
+                                applicationViewModel.acceptApplication(
+                                    applicationId = application.applicationId,
+                                    employerId = currentUser.id,
+                                    taskId = task.id
+                                )
+                            },
+                            onReject = {
+                                applicationViewModel.rejectApplication(
+                                    applicationId = application.applicationId,
+                                    employerId = currentUser.id,
+                                    taskId = task.id
+                                )
+                            },
+                            onClearError = { applicationViewModel.clearError() }
                         )
                     }
                 }
             }
         }
 
+        // ── Нижняя навигация (скрыта на экранах без nav bar) ──────────────
         AnimatedVisibility(
-            visible = currentRoute != "search" && currentRoute != "gig_details" &&
-                    currentRoute != "notification" && currentRoute != "verification" &&
-                    currentRoute != "create_task",
+            visible = currentRoute != "search"
+                    && currentRoute != "gig_details"
+                    && currentRoute != "notification"
+                    && currentRoute != "verification"
+                    && currentRoute != "create_task"
+                    && currentRoute != "student_my_projects"
+                    && currentRoute != "employer_tasks"
+                    && currentRoute != "employer_task_applications"  // НОВОЕ
+                    && currentRoute != "student_profile_view",       // НОВОЕ
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            exit  = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             BottomContainer(

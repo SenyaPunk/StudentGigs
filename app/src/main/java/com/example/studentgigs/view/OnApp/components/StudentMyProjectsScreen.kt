@@ -33,7 +33,9 @@ import com.example.studentgigs.viewmodel.ApplicationViewModel
 fun StudentMyProjectsScreen(
     applicationViewModel: ApplicationViewModel,
     onBack: () -> Unit,
-    onTaskClick: (Task) -> Unit = {}
+    onTaskClick: (Task) -> Unit = {},
+    // НОВОЕ: прямой переход в рабочую зону для принятых откликов
+    onWorkspaceClick: (Application) -> Unit = {}
 ) {
     val uiState by applicationViewModel.uiState.collectAsState()
 
@@ -112,11 +114,14 @@ fun StudentMyProjectsScreen(
                     )
                 }
                 items(inProgress, key = { it.applicationId }) { app ->
+                    // ИСПРАВЛЕНО: В работе → сразу в рабочую зону
                     ApplicationCard(
                         application = app,
                         statusColor = Color(0xFF4CAF50),
                         statusLabel = "В работе",
                         statusIcon = { StatusDot(Color(0xFF4CAF50)) },
+                        showWorkspaceButton = true,
+                        onWorkspaceClick = { onWorkspaceClick(app) },
                         onClick = { app.task?.let { onTaskClick(it) } }
                     )
                 }
@@ -148,20 +153,20 @@ fun StudentMyProjectsScreen(
                     SectionHeader(
                         title = "Завершённые",
                         count = completed.size,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 items(completed, key = { it.applicationId }) { app ->
                     ApplicationCard(
                         application = app,
-                        statusColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        statusColor = MaterialTheme.colorScheme.secondary,
                         statusLabel = "Завершено",
                         statusIcon = {
                             Icon(
                                 Icons.Rounded.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(14.dp)
+                                null,
+                                tint     = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(10.dp)
                             )
                         },
                         onClick = { app.task?.let { onTaskClick(it) } }
@@ -172,89 +177,71 @@ fun StudentMyProjectsScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Карточка отклика
-// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun SectionHeader(title: String, count: Int, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color, CircleShape)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = "($count)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
 
 @Composable
-fun ApplicationCard(
+private fun StatusDot(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .background(color, CircleShape)
+    )
+}
+
+// ИСПРАВЛЕНО: добавлены параметры showWorkspaceButton и onWorkspaceClick
+@Composable
+private fun ApplicationCard(
     application: Application,
     statusColor: Color,
     statusLabel: String,
     statusIcon: @Composable () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    showWorkspaceButton: Boolean = false,
+    onWorkspaceClick: () -> Unit = {}
 ) {
-    val task = application.task
-
     Card(
-        modifier = Modifier
+        modifier  = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .animateContentSize(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .animateContentSize()
+            .clickable(onClick = onClick),
+        shape     = RoundedCornerShape(20.dp),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Иконка задания
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = task?.iconEmoji ?: "📋", fontSize = 26.sp)
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task?.title ?: "Задание",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = task?.employerName ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(12.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Цена
-                task?.let {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Outlined.CurrencyRuble,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        val displayPrice = if (it.price.contains("₽")) it.price else "${it.price} ₽"
-                        Text(
-                            text = displayPrice,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                // Статус
+                Text(
+                    text = application.task?.iconEmoji ?: "📋",
+                    fontSize = 28.sp
+                )
                 Surface(
                     color = statusColor.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(20.dp)
@@ -266,8 +253,8 @@ fun ApplicationCard(
                     ) {
                         statusIcon()
                         Text(
-                            text = statusLabel,
-                            style = MaterialTheme.typography.labelMedium,
+                            text  = statusLabel,
+                            style = MaterialTheme.typography.labelSmall,
                             color = statusColor,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -275,98 +262,87 @@ fun ApplicationCard(
                 }
             }
 
-            // Срок
-            task?.duration?.takeIf { it.isNotBlank() }?.let { duration ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                text       = application.task?.title ?: "Задание удалено",
+                style      = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines   = 2
+            )
+
+            if (!application.task?.description.isNullOrBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text     = application.task!!.description,
+                    style    = MaterialTheme.typography.bodySmall,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+
+            if (!application.task?.price.isNullOrBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Icon(
-                        Icons.Outlined.Schedule,
-                        contentDescription = null,
+                        Icons.Outlined.CurrencyRuble, null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint     = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = duration,
+                        text  = application.task!!.price,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
                     )
+                }
+            }
+
+            // НОВОЕ: кнопка "Рабочая зона" для принятых откликов
+            if (showWorkspaceButton) {
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = onWorkspaceClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape  = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Icon(
+                        Icons.Outlined.Forum, null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Открыть рабочую зону", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Заголовок секции
-// ─────────────────────────────────────────────────────────────────────────────
-
 @Composable
-fun SectionHeader(title: String, count: Int, color: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Surface(
-            color = color.copy(alpha = 0.15f),
-            shape = CircleShape
+private fun EmptyProjectsState(modifier: Modifier = Modifier) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier            = Modifier.padding(32.dp)
         ) {
+            Text("📋", fontSize = 64.sp)
+            Spacer(Modifier.height(16.dp))
             Text(
-                text = count.toString(),
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = color
+                "Откликов пока нет",
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Откликайтесь на задания,\nчтобы они появились здесь",
+                style     = MaterialTheme.typography.bodyMedium,
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Точка статуса
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-fun StatusDot(color: Color) {
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .background(color, CircleShape)
-    )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Пустое состояние
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-fun EmptyProjectsState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = "📋", fontSize = 56.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Пока нет откликов",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Откликайтесь на задания, чтобы они\nпоявились здесь",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
     }
 }

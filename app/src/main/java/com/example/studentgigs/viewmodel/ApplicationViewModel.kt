@@ -33,7 +33,11 @@ data class ApplicationUiState(
     val operationSuccess: Boolean = false,
 
     // ── Общие ────────────────────────────────────────
-    val error: String? = null
+    val error: String? = null,
+
+    // ── Завершение задания (работодатель) ─────────────────────────────
+    val isConfirmingCompletion: Boolean = false,
+    val completionMessage: String? = null
 )
 
 class ApplicationViewModel(application: android.app.Application) : AndroidViewModel(application) {
@@ -204,6 +208,32 @@ class ApplicationViewModel(application: android.app.Application) : AndroidViewMo
     // ────────────────────────────────────────────────
     // Общие
     // ────────────────────────────────────────────────
+
+    /** Работодатель подтверждает завершение задания */
+    fun confirmCompletionAsEmployer(applicationId: Long, userId: Long, taskId: Long, employerId: Long) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isConfirmingCompletion = true, error = null)
+            when (val result = repository.confirmCompletion(applicationId, userId)) {
+                is ApplicationResult.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isConfirmingCompletion = false,
+                        completionMessage = "Подтверждение получено"
+                    )
+                    loadTaskApplications(taskId, employerId)
+                }
+                is ApplicationResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isConfirmingCompletion = false,
+                        error = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearCompletionMessage() {
+        _uiState.value = _uiState.value.copy(completionMessage = null)
+    }
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)

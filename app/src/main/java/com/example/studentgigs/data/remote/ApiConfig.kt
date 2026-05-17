@@ -26,4 +26,11 @@ object ApiConfig {
     const val ACCEPT_APPLICATION = "accept_application.php"
     const val REJECT_APPLICATION = "reject_application.php"
     const val GET_STUDENT_PROFILE = "get_student_profile.php"
+
+    // Workspace endpoints
+    const val GET_WORKSPACE       = "get_workspace.php"
+    const val SEND_MESSAGE        = "send_message.php"
+    const val UPLOAD_FILE         = "upload_file.php"
+    const val CONFIRM_COMPLETION  = "confirm_completion.php"
+    const val SETUP_WORKSPACE     = "setup_workspace.php"
 }

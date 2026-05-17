@@ -40,6 +40,8 @@ class ApplicationRepository(context: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val response = apiClient.applyToTask(studentId, taskId)
+                if (response.body.isBlank()) return@withContext ApplicationResult.Error("Сервер не ответил (пустой ответ)")
+                if (!response.body.trimStart().startsWith("{")) return@withContext ApplicationResult.Error("Неверный ответ сервера: ${response.body.take(200)}")
                 val json = JSONObject(response.body)
                 if (json.optBoolean("success", false)) {
                     val data = json.optJSONObject("data")
@@ -58,6 +60,8 @@ class ApplicationRepository(context: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val response = apiClient.getApplications(studentId)
+                if (response.body.isBlank()) return@withContext ApplicationResult.Error("Сервер не ответил (пустой ответ)")
+                if (!response.body.trimStart().startsWith("{")) return@withContext ApplicationResult.Error("Неверный ответ сервера: ${response.body.take(200)}")
                 val json = JSONObject(response.body)
 
                 if (!json.optBoolean("success", false)) {
@@ -257,4 +261,30 @@ class ApplicationRepository(context: Context) {
             serviceCategory = json.optString("service_category", "").takeIf { it.isNotBlank() }
         )
     }
+
+    /** Подтвердить завершение задания (студент или работодатель) */
+    suspend fun confirmCompletion(applicationId: Long, userId: Long): ApplicationResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val json = org.json.JSONObject().apply {
+                    put("application_id", applicationId)
+                    put("user_id", userId)
+                }
+                val response = apiClient.postJsonRaw(
+                    com.example.studentgigs.data.remote.ApiConfig.BASE_URL +
+                            com.example.studentgigs.data.remote.ApiConfig.CONFIRM_COMPLETION,
+                    json.toString()
+                )
+                if (response.body.isBlank()) return@withContext ApplicationResult.Error("Сервер не ответил")
+                val respJson = org.json.JSONObject(response.body)
+                if (respJson.optBoolean("success", false)) {
+                    ApplicationResult.Success()
+                } else {
+                    ApplicationResult.Error(respJson.optString("message", "Ошибка подтверждения"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "confirmCompletion error", e)
+                ApplicationResult.Error(e.message ?: "Неизвестная ошибка")
+            }
+        }
 }

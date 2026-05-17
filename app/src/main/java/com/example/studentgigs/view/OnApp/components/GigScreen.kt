@@ -48,8 +48,10 @@ fun GigScreen(
     isStudent: Boolean = false,
     isApplied: Boolean = false,
     isApplying: Boolean = false,
+    isInProgress: Boolean = false,
     errorMessage: String? = null,
     onApply: () -> Unit = {},
+    onGoToWorkspace: () -> Unit = {},
     onClearError: () -> Unit = {},
     isEmployerOwner: Boolean = false,
     onGoToTask: () -> Unit = {}
@@ -119,40 +121,80 @@ fun GigScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            Button(
-                                onClick = { if (!isApplied && !isApplying) onApply() },
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                                enabled = !isApplying
-                            ) {
-                                if (isApplying) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        color = Color.Black,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else if (isApplied) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Вы откликнулись",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Откликнуться",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.Black
-                                    )
+                            when {
+                                isInProgress -> {
+                                    Button(
+                                        onClick  = onGoToWorkspace,
+                                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                                    ) {
+                                        Icon(
+                                            imageVector        = Icons.Outlined.Construction,
+                                            contentDescription = null,
+                                            tint               = Color.White,
+                                            modifier           = Modifier.size(22.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text       = "Выполнить задание",
+                                            fontSize   = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color      = Color.White
+                                        )
+                                    }
+                                }
+                                isApplying -> {
+                                    Button(
+                                        onClick  = {},
+                                        enabled  = false,
+                                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        colors   = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier    = Modifier.size(22.dp),
+                                            color       = Color.Black,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                }
+                                isApplied -> {
+                                    Button(
+                                        onClick  = {},
+                                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                                    ) {
+                                        Icon(
+                                            imageVector        = Icons.Rounded.CheckCircle,
+                                            contentDescription = null,
+                                            tint               = Color.White,
+                                            modifier           = Modifier.size(22.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text       = "Вы откликнулись",
+                                            fontSize   = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color      = Color.White
+                                        )
+                                    }
+                                }
+                                else -> {
+                                    Button(
+                                        onClick  = onApply,
+                                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        colors   = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                                    ) {
+                                        Text(
+                                            text       = "Откликнуться",
+                                            fontSize   = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color      = Color.Black
+                                        )
+                                    }
                                 }
                             }
                         }

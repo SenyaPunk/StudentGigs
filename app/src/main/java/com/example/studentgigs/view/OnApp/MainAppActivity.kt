@@ -15,6 +15,7 @@ import com.example.studentgigs.view.OnRegister.LoginAppActivity
 import com.example.studentgigs.viewmodel.ApplicationViewModel
 import com.example.studentgigs.viewmodel.AuthViewModel
 import com.example.studentgigs.viewmodel.TaskViewModel
+import com.example.studentgigs.viewmodel.WorkspaceViewModel
 
 class MainAppActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,13 +36,15 @@ class MainAppActivity : ComponentActivity() {
                 val authViewModel: AuthViewModel = viewModel()
                 val taskViewModel: TaskViewModel = viewModel()
                 val applicationViewModel: ApplicationViewModel = viewModel()
+                val workspaceViewModel: WorkspaceViewModel = viewModel()
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainApp(
                         innerPadding = innerPadding,
                         authViewModel = authViewModel,
                         taskViewModel = taskViewModel,
-                        applicationViewModel = applicationViewModel
+                        applicationViewModel = applicationViewModel,
+                        workspaceViewModel = workspaceViewModel
                     )
                 }
             }

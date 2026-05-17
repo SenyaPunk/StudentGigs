@@ -1,3 +1,4 @@
+
 package com.example.studentgigs.view.OnApp
 
 import androidx.activity.compose.BackHandler
@@ -95,6 +96,8 @@ import com.example.studentgigs.view.OnApp.components.StudentProfileViewScreen
 import com.example.studentgigs.viewmodel.ApplicationViewModel
 import com.example.studentgigs.viewmodel.AuthViewModel
 import com.example.studentgigs.viewmodel.TaskViewModel
+import com.example.studentgigs.viewmodel.WorkspaceViewModel
+import com.example.studentgigs.view.OnApp.components.WorkspaceScreen
 
 data class Category(
     val name: String,
@@ -124,14 +127,16 @@ fun MainApp(
     innerPadding: PaddingValues,
     authViewModel: AuthViewModel,
     taskViewModel: TaskViewModel,
-    applicationViewModel: ApplicationViewModel
+    applicationViewModel: ApplicationViewModel,
+    workspaceViewModel: WorkspaceViewModel
 ) {
     var currentRoute by remember { mutableStateOf("home") }
     var selectedTask by remember { mutableStateOf<com.example.studentgigs.data.model.Task?>(null) }
 
     // ── НОВОЕ: флаг "работодатель смотрит своё задание" и выбранный отклик
-    var isViewingOwnTask    by remember { mutableStateOf(false) }
-    var selectedApplication by remember { mutableStateOf<com.example.studentgigs.data.model.Application?>(null) }
+    var isViewingOwnTask       by remember { mutableStateOf(false) }
+    var selectedApplication    by remember { mutableStateOf<com.example.studentgigs.data.model.Application?>(null) }
+    var workspacePreviousRoute by remember { mutableStateOf("gig_details") }
 
     val uiState by authViewModel.uiState.collectAsState()
     val currentUser = uiState.currentUser
@@ -167,10 +172,29 @@ fun MainApp(
             val user = currentUser ?: return@LaunchedEffect
             applicationViewModel.loadTaskApplications(task.id, user.id)
         }
+        if (currentRoute == "workspace") {
+            val app  = selectedApplication ?: return@LaunchedEffect
+            val user = currentUser ?: return@LaunchedEffect
+            workspaceViewModel.startWorkspace(app.applicationId, user.id)
+        } else {
+            workspaceViewModel.stopWorkspace()
+        }
     }
+
+    val workspaceUiState by workspaceViewModel.uiState.collectAsState()
+
+    val studentInProgressApp = if (isStudent) {
+        appUiState.applications.firstOrNull {
+            it.taskId == selectedTask?.id && it.status == ApplicationStatus.IN_PROGRESS
+        }
+    } else null
 
     BackHandler(enabled = currentRoute != "home") {
         when (currentRoute) {
+            "workspace"                     -> {
+                workspaceViewModel.stopWorkspace()
+                currentRoute = workspacePreviousRoute
+            }
             "student_profile_view"          -> currentRoute = "employer_task_applications"
             "employer_task_applications"    -> currentRoute = "gig_details"
             "gig_details"                   -> {
@@ -246,10 +270,18 @@ fun MainApp(
                             isStudent = isStudent,
                             isApplied = appUiState.appliedTaskIds.contains(task.id),
                             isApplying = appUiState.applyingTaskId == task.id,
+                            isInProgress = studentInProgressApp != null,
                             errorMessage = appUiState.error,
                             onApply = {
                                 currentUser?.let { user ->
                                     applicationViewModel.applyToTask(user.id, task.id)
+                                }
+                            },
+                            onGoToWorkspace = {
+                                studentInProgressApp?.let { app ->
+                                    selectedApplication = app
+                                    workspacePreviousRoute = "gig_details"
+                                    currentRoute = "workspace"
                                 }
                             },
                             onClearError = { applicationViewModel.clearError() },
@@ -302,6 +334,13 @@ fun MainApp(
                             selectedTask = clickedTask
                             isViewingOwnTask = false
                             currentRoute = "gig_details"
+                        },
+                        // ИСПРАВЛЕНО: прямой переход в рабочую зону
+                        onWorkspaceClick = { application ->
+                            selectedApplication = application
+                            selectedTask = application.task
+                            workspacePreviousRoute = "student_my_projects"
+                            currentRoute = "workspace"
                         }
                     )
                 }
@@ -371,6 +410,22 @@ fun MainApp(
                 }
 
                 // ── НОВЫЙ: Профиль студента (работодатель смотрит) ────────
+                // Рабочая зона (студент)
+                "workspace" -> {
+                    val application = selectedApplication
+                    val task = selectedTask
+                    val user = currentUser
+                    if (application != null && task != null && user != null) {
+                        WorkspaceScreen(
+                            application = application,
+                            task = task,
+                            currentUser = user,
+                            workspaceViewModel = workspaceViewModel,
+                            onBack = { currentRoute = workspacePreviousRoute }
+                        )
+                    }
+                }
+
                 "student_profile_view" -> {
                     val application = selectedApplication
                     val task = selectedTask
@@ -397,6 +452,19 @@ fun MainApp(
                                     taskId = task.id
                                 )
                             },
+                            isCompletingTask = appUiState.isConfirmingCompletion,
+                            onCompleteTask = {
+                                applicationViewModel.confirmCompletionAsEmployer(
+                                    applicationId = application.applicationId,
+                                    userId = currentUser.id,
+                                    taskId = task.id,
+                                    employerId = currentUser.id
+                                )
+                            },
+                            onOpenWorkspace = {
+                                workspacePreviousRoute = "student_profile_view"
+                                currentRoute = "workspace"
+                            },
                             onClearError = { applicationViewModel.clearError() }
                         )
                     }
@@ -414,7 +482,8 @@ fun MainApp(
                     && currentRoute != "student_my_projects"
                     && currentRoute != "employer_tasks"
                     && currentRoute != "employer_task_applications"  // НОВОЕ
-                    && currentRoute != "student_profile_view",       // НОВОЕ
+                    && currentRoute != "student_profile_view"       // НОВОЕ
+                    && currentRoute != "workspace",
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit  = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)

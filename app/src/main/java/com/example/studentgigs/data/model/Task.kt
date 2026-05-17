@@ -43,7 +43,7 @@ data class Task(
     val serviceCategory: String? = null,
 
 
-)
+    )
 
 // Тип оплаты
 enum class PriceType {

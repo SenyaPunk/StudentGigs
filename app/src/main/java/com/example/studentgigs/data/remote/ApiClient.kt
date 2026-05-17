@@ -130,6 +130,27 @@ class ApiClient {
     // HTTP
     // ─────────────────────────────────────────────
 
+
+    fun postJsonRaw(url: String, jsonBody: String): ApiResponse = postRequest(url, jsonBody)
+
+    suspend fun getWorkspace(applicationId: Long, userId: Long): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply { put("application_id", applicationId); put("user_id", userId) }
+        postRequest(ApiConfig.BASE_URL + ApiConfig.GET_WORKSPACE, json.toString())
+    }
+
+    suspend fun sendMessage(applicationId: Long, senderId: Long, senderName: String, message: String): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply {
+            put("application_id", applicationId); put("sender_id", senderId)
+            put("sender_name", senderName); put("message", message)
+        }
+        postRequest(ApiConfig.BASE_URL + ApiConfig.SEND_MESSAGE, json.toString())
+    }
+
+    suspend fun confirmCompletion(applicationId: Long, userId: Long): ApiResponse = withContext(Dispatchers.IO) {
+        val json = JSONObject().apply { put("application_id", applicationId); put("user_id", userId) }
+        postRequest(ApiConfig.BASE_URL + ApiConfig.CONFIRM_COMPLETION, json.toString())
+    }
+
     private fun postRequest(url: String, jsonBody: String): ApiResponse {
         return try {
             val bodyBytes = jsonBody.toByteArray(Charsets.UTF_8)

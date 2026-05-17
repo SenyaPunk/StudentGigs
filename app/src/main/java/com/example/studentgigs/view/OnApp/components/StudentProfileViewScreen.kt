@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,10 +45,13 @@ fun StudentProfileViewScreen(
     hasAcceptedApplicant: Boolean,
     isAccepting: Boolean = false,
     isRejecting: Boolean = false,
+    isCompletingTask: Boolean = false,
     errorMessage: String? = null,
     onBack: () -> Unit,
     onAccept: () -> Unit,
     onReject: () -> Unit,
+    onCompleteTask: () -> Unit = {},
+    onOpenWorkspace: () -> Unit = {},
     onClearError: () -> Unit = {}
 ) {
     val student = application.student
@@ -235,94 +239,72 @@ fun StudentProfileViewScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         when {
-                            // Уже принят — кнопка "Отозвать"
+                            // Уже принят (IN_PROGRESS) — кнопки "Завершить" + "Отозвать"
                             isAccepted -> {
-                                OutlinedButton(
-                                    onClick = { showRejectDialog = true },
-                                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp, MaterialTheme.colorScheme.error
-                                    ),
-                                    enabled = !isRejecting
-                                ) {
-                                    if (isRejecting) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(22.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        Icon(
-                                            Icons.Outlined.Cancel,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                                    // Завершить задание
+                                    Button(
+                                        onClick  = onCompleteTask,
+                                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                        enabled  = !isCompletingTask && !isRejecting
+                                    ) {
+                                        if (isCompletingTask) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                                        } else {
+                                            Icon(Icons.Rounded.CheckCircle, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Завершить задание", color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    // Рабочая зона (чат)
+                                    OutlinedButton(
+                                        onClick  = onOpenWorkspace,
+                                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        enabled  = !isCompletingTask && !isRejecting
+                                    ) {
+                                        Icon(Icons.Outlined.Forum, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            "Отозвать студента",
-                                            color = MaterialTheme.colorScheme.error,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
+                                        Text("Чат с исполнителем", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    // Отозвать студента
+                                    OutlinedButton(
+                                        onClick  = { showRejectDialog = true },
+                                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                                        shape    = RoundedCornerShape(16.dp),
+                                        border   = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                                        enabled  = !isRejecting && !isCompletingTask
+                                    ) {
+                                        if (isRejecting) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            Icon(Icons.Outlined.Cancel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Отозвать студента", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                                        }
                                     }
                                 }
                             }
 
-                            // Отклонён — показываем кнопку принятия (можно передумать)
+                            // Отклонён — информационная плашка
                             isRejected -> {
-                                if (hasAcceptedApplicant) {
-                                    // Другой студент уже принят
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.padding(16.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Button(
-                                            onClick = {},
-                                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                                            shape = RoundedCornerShape(16.dp),
-                                            enabled = false
-                                        ) {
-                                            Text("Принять отклик", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                        }
                                         Text(
-                                            text = "Сначала отзовите принятого студента",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = "Отклик отклонён",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = FontWeight.Medium
                                         )
-                                    }
-                                } else {
-                                    // Можно принять (студент был отклонён, но нет принятого)
-                                    Button(
-                                        onClick = { showAcceptDialog = true },
-                                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                                        shape = RoundedCornerShape(16.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF4CAF50)
-                                        ),
-                                        enabled = !isAccepting
-                                    ) {
-                                        if (isAccepting) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(22.dp),
-                                                color = Color.White,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Icon(
-                                                Icons.Rounded.CheckCircle,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                "Принять отклик",
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                        }
                                     }
                                 }
                             }

@@ -15,7 +15,10 @@ import kotlinx.coroutines.withContext
 
 data class TaskUiState(
     val isLoading: Boolean = false,
+    // Главный фид — только ACTIVE задания для студентов
     val tasks: List<Task> = emptyList(),
+    // ИСПРАВЛЕНО: отдельный список для экрана работодателя (ACTIVE + CLOSED + COMPLETED)
+    val employerTasks: List<Task> = emptyList(),
     val error: String? = null,
     val createSuccess: Boolean = false,
     val createdTask: Task? = null
@@ -91,7 +94,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Загрузка заданий работодателя
+    // ИСПРАВЛЕНО: результат пишем в employerTasks, не в tasks
+    // Так главный фид не загрязняется заданиями работодателя (CLOSED/COMPLETED)
     fun loadEmployerTasks(employerId: Long) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -104,7 +108,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 is TaskResult.Success -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        tasks = result.tasks,
+                        employerTasks = result.tasks,
                         error = null
                     )
                 }
@@ -118,7 +122,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Загрузка всех активных заданий
+    // Загрузка активных заданий для главного фида (студенты видят только ACTIVE)
     fun loadAllActiveTasks() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)

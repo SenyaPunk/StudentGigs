@@ -167,10 +167,19 @@ fun MainApp(
 
     // ── НОВОЕ: загружаем отклики когда входим на экран списка откликов
     LaunchedEffect(currentRoute) {
+        // ИСПРАВЛЕНО: при возврате на главную перезагружаем активный фид,
+        // чтобы не показывать там CLOSED/COMPLETED задания работодателя
+        if (currentRoute == "home") {
+            taskViewModel.loadAllActiveTasks()
+        }
         if (currentRoute == "employer_task_applications") {
             val task = selectedTask ?: return@LaunchedEffect
             val user = currentUser ?: return@LaunchedEffect
             applicationViewModel.loadTaskApplications(task.id, user.id)
+        }
+        if (currentRoute == "employer_tasks") {
+            val user = currentUser ?: return@LaunchedEffect
+            taskViewModel.loadEmployerTasks(user.id)
         }
         if (currentRoute == "workspace") {
             val app  = selectedApplication ?: return@LaunchedEffect
@@ -178,6 +187,17 @@ fun MainApp(
             workspaceViewModel.startWorkspace(app.applicationId, user.id)
         } else {
             workspaceViewModel.stopWorkspace()
+        }
+    }
+
+    // ИСПРАВЛЕНО: после acceptApplication/rejectApplication сервер обновляет taskApplications.
+    // Синхронизируем selectedApplication с обновлёнными данными, чтобы StudentProfileViewScreen
+    // сразу видел реальный статус (IN_PROGRESS) и показывал кнопку "Чат с исполнителем".
+    LaunchedEffect(appUiState.taskApplications) {
+        val current = selectedApplication ?: return@LaunchedEffect
+        val updated = appUiState.taskApplications.find { it.applicationId == current.applicationId }
+        if (updated != null && updated.status != current.status) {
+            selectedApplication = updated
         }
     }
 
@@ -310,7 +330,7 @@ fun MainApp(
 
                 // ── Профиль ───────────────────────────────────────────────
                 "profile" -> {
-                    val activeCount = taskUiState.tasks.count {
+                    val activeCount = taskUiState.employerTasks.count {
                         it.employerId == currentUser?.id && it.status.toString() == "ACTIVE"
                     }
                     ProfileScreen(
@@ -379,7 +399,7 @@ fun MainApp(
                 "employer_tasks" -> {
                     currentUser?.let { user ->
                         EmployerTasksScreen(
-                            tasks = taskUiState.tasks,
+                            tasks = taskUiState.employerTasks,
                             currentEmployerId = user.id,
                             onBack = { currentRoute = "profile" },
                             onTaskClick = { clickedTask ->
@@ -432,8 +452,11 @@ fun MainApp(
                     if (application != null && task != null && currentUser != null) {
                         StudentProfileViewScreen(
                             application = application,
-                            hasAcceptedApplicant = applicationViewModel.hasAcceptedApplicant(task.id)
-                                    && application.status != ApplicationStatus.IN_PROGRESS,
+                            hasAcceptedApplicant = (applicationViewModel.hasAcceptedApplicant(task.id)
+                                    || task.status == com.example.studentgigs.data.model.TaskStatus.CLOSED
+                                    || task.status == com.example.studentgigs.data.model.TaskStatus.COMPLETED)
+                                    && application.status != ApplicationStatus.IN_PROGRESS
+                                    && application.status != ApplicationStatus.COMPLETED,
                             isAccepting = appUiState.acceptingApplicationId == application.applicationId,
                             isRejecting = appUiState.rejectingApplicationId == application.applicationId,
                             errorMessage = appUiState.error,

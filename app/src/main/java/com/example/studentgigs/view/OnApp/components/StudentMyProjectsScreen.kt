@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,6 +43,7 @@ fun StudentMyProjectsScreen(
     val inProgress  = uiState.applications.filter { it.status == ApplicationStatus.IN_PROGRESS }
     val pending     = uiState.applications.filter { it.status == ApplicationStatus.PENDING }
     val completed   = uiState.applications.filter { it.status == ApplicationStatus.COMPLETED }
+    val rejected    = uiState.applications.filter { it.status == ApplicationStatus.REJECTED }
 
     Scaffold(
         topBar = {
@@ -153,19 +155,19 @@ fun StudentMyProjectsScreen(
                     SectionHeader(
                         title = "Завершённые",
                         count = completed.size,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 items(completed, key = { it.applicationId }) { app ->
                     ApplicationCard(
                         application = app,
-                        statusColor = MaterialTheme.colorScheme.secondary,
+                        statusColor = MaterialTheme.colorScheme.primary,
                         statusLabel = "Завершено",
                         statusIcon = {
                             Icon(
                                 Icons.Rounded.CheckCircle,
                                 null,
-                                tint     = MaterialTheme.colorScheme.secondary,
+                                tint     = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(10.dp)
                             )
                         },
@@ -173,9 +175,35 @@ fun StudentMyProjectsScreen(
                     )
                 }
             }
-        }
-    }
-}
+
+              // ── Отклонено ─────────────────────────────────────────────────
+              if (rejected.isNotEmpty()) {
+                  item {
+                      SectionHeader(
+                          title = "Отклонено",
+                          count = rejected.size,
+                          color = MaterialTheme.colorScheme.error
+                      )
+                  }
+                  items(rejected, key = { "rej_${it.applicationId}" }) { app ->
+                      ApplicationCard(
+                          application = app,
+                          statusColor = MaterialTheme.colorScheme.error,
+                          statusLabel = "Отклонено",
+                          statusIcon = {
+                              Icon(
+                                  Icons.Outlined.Cancel, null,
+                                  tint     = MaterialTheme.colorScheme.error,
+                                  modifier = Modifier.size(10.dp)
+                              )
+                          },
+                          onClick = { app.task?.let { onTaskClick(it) } }
+                      )
+                  }
+              }
+          }
+      }
+  }
 
 @Composable
 private fun SectionHeader(title: String, count: Int, color: Color) {

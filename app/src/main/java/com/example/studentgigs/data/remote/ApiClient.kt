@@ -82,14 +82,17 @@ class ApiClient {
         postRequest(ApiConfig.BASE_URL + ApiConfig.CREATE_TASK, json.toString())
     }
 
+    // ИСПРАВЛЕНО: status теперь nullable — null означает "не фильтровать по статусу"
+    // Для студентов передаём status = "ACTIVE", для работодателей — null (все статусы)
     suspend fun getTasks(
         type: String? = null, employerId: Long? = null,
-        status: String = "ACTIVE", limit: Int = 50, offset: Int = 0
+        status: String? = "ACTIVE", limit: Int = 50, offset: Int = 0
     ): ApiResponse = withContext(Dispatchers.IO) {
         val json = JSONObject().apply {
             type?.let { put("type", it) }
             employerId?.let { put("employer_id", it) }
-            put("status", status); put("limit", limit); put("offset", offset)
+            status?.let { put("status", it) }   // Если null — не отправляем, сервер покажет все статусы
+            put("limit", limit); put("offset", offset)
         }
         postRequest(ApiConfig.BASE_URL + ApiConfig.GET_TASKS, json.toString())
     }
@@ -126,11 +129,6 @@ class ApiClient {
             JSONObject().apply { put("student_id", studentId) }.toString())
     }
 
-    // ─────────────────────────────────────────────
-    // HTTP
-    // ─────────────────────────────────────────────
-
-
     fun postJsonRaw(url: String, jsonBody: String): ApiResponse = postRequest(url, jsonBody)
 
     suspend fun getWorkspace(applicationId: Long, userId: Long): ApiResponse = withContext(Dispatchers.IO) {
@@ -158,7 +156,6 @@ class ApiClient {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Content-Length", bodyBytes.size.toString())
-                // Connection: close предотвращает ошибку "unexpected end of stream"
                 setRequestProperty("Connection", "close")
                 doOutput = true
                 connectTimeout = 15_000

@@ -134,7 +134,7 @@ class TaskRepository(context: Context) {
     suspend fun getEmployerTasks(employerId: Long): TaskResult = withContext(Dispatchers.IO) {
         try {
             val serverResult = try {
-                apiClient.getTasks(employerId = employerId)
+                apiClient.getTasks(employerId = employerId, status = null) // ИСПРАВЛЕНО: null → сервер вернёт ACTIVE+CLOSED+COMPLETED
             } catch (e: Exception) { null }
 
             if (serverResult?.success == true && serverResult.data != null) {

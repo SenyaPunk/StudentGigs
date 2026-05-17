@@ -71,7 +71,7 @@ fun EmployerTaskApplicationsScreen(
     }
 
     val acceptedCount = applications.count { it.status == ApplicationStatus.IN_PROGRESS }
-    val pendingCount = applications.count { it.status == ApplicationStatus.PENDING }
+    val pendingCount  = applications.count { it.status == ApplicationStatus.PENDING }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -204,9 +204,11 @@ fun EmployerTaskApplicationsScreen(
                 )
             }
 
-            // Остальные
-            val others = sorted.filter { it.status != ApplicationStatus.IN_PROGRESS }
-            if (others.isNotEmpty()) {
+            // ИСПРАВЛЕНО: разделяем PENDING и REJECTED — раньше оба шли в "Ожидают"
+            val pending  = sorted.filter { it.status == ApplicationStatus.PENDING }
+            val rejected = sorted.filter { it.status == ApplicationStatus.REJECTED }
+
+            if (pending.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -217,7 +219,26 @@ fun EmployerTaskApplicationsScreen(
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                 }
-                items(others, key = { "other_${it.applicationId}" }) { app ->
+                items(pending, key = { "pending_${it.applicationId}" }) { app ->
+                    ApplicantCard(
+                        application = app,
+                        onClick = { onStudentClick(app) }
+                    )
+                }
+            }
+
+            if (rejected.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Отклонённые",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+                items(rejected, key = { "rejected_${it.applicationId}" }) { app ->
                     ApplicantCard(
                         application = app,
                         onClick = { onStudentClick(app) }

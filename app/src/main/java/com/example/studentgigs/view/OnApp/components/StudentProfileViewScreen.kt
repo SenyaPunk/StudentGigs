@@ -120,7 +120,7 @@ fun StudentProfileViewScreen(
                                 modifier = Modifier.size(18.dp).padding(top = 2.dp)
                             )
                             Text(
-                                text = "После принятия вы не сможете принять другого студента, пока не отзовёте текущего.",
+                                text = "После принятия исполнителя задание закроется. Остальным студентам придёт отказ. Перевыбрать нельзя.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -269,22 +269,7 @@ fun StudentProfileViewScreen(
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text("Чат с исполнителем", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                                     }
-                                    // Отозвать студента
-                                    OutlinedButton(
-                                        onClick  = { showRejectDialog = true },
-                                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                                        shape    = RoundedCornerShape(16.dp),
-                                        border   = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                                        enabled  = !isRejecting && !isCompletingTask
-                                    ) {
-                                        if (isRejecting) {
-                                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            Icon(Icons.Outlined.Cancel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Отозвать студента", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
-                                        }
-                                    }
+
                                 }
                             }
 
@@ -469,7 +454,7 @@ fun StudentProfileViewScreen(
                                 color = Color(0xFF388E3C)
                             )
                             Text(
-                                text = "Вы можете отозвать его, чтобы принять другого",
+                                text = "Задание закрыто для новых откликов. Используйте чат для обсуждения деталей.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFF4CAF50)
                             )

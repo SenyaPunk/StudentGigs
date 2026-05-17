@@ -12,7 +12,8 @@ $data = getJsonInput();
 
 $type       = isset($data['type'])        ? strtoupper($data['type']) : null;
 $employerId = $data['employer_id']        ?? null;
-$status     = isset($data['status'])      ? strtoupper($data['status']) : 'ACTIVE';
+$statusExplicit = isset($data['status']);
+  $status         = $statusExplicit ? strtoupper($data['status']) : null;
 $limit      = min((int)($data['limit']   ?? 50), 100);
 $offset     = (int)($data['offset']      ?? 0);
 
@@ -22,10 +23,16 @@ try {
     $whereConditions = [];
     $params = [];
 
-    if ($status && in_array($status, ['ACTIVE', 'CLOSED', 'DRAFT'])) {
-        $whereConditions[] = "t.status = ?";
-        $params[] = $status;
-    }
+    // Работодатель видит все свои задания (ACTIVE + CLOSED + COMPLETED)
+      // Студентам показываем только ACTIVE
+      if ($status && in_array($status, ['ACTIVE', 'CLOSED', 'DRAFT', 'COMPLETED'])) {
+          $whereConditions[] = "t.status = ?";
+          $params[] = $status;
+      } elseif (!$statusExplicit && !$employerId) {
+          // Публичный фид — только активные задания
+          $whereConditions[] = "t.status = 'ACTIVE'";
+      }
+      // Если employer_id задан без status — показываем все статусы
 
     if ($type && in_array($type, ['SERVICE', 'VACANCY', 'TASK'])) {
         $whereConditions[] = "t.type = ?";

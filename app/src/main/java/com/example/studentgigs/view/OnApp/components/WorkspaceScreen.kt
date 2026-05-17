@@ -44,7 +44,10 @@ fun WorkspaceScreen(
     task: Task,
     currentUser: User,
     workspaceViewModel: WorkspaceViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // Вызывается один раз, когда задание переходит в COMPLETED.
+    // Передаёт данные для показа диалога отзыва (или null, если данных нет).
+    onTaskCompleted: (PendingReview) -> Unit = {}
 ) {
     val uiState by workspaceViewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -54,17 +57,20 @@ fun WorkspaceScreen(
     var messageText by remember { mutableStateOf("") }
     var showCompletionDialog by remember { mutableStateOf(false) }
 
+    // Флаг, предотвращающий повторный вызов onTaskCompleted
+    var reviewPromptTriggered by remember { mutableStateOf(false) }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             workspaceViewModel.uploadFile(
-                context      = context,
-                uri          = it,
+                context       = context,
+                uri           = it,
                 applicationId = application.applicationId,
-                uploaderId   = currentUser.id,
-                uploaderName = currentUser.displayName
+                uploaderId    = currentUser.id,
+                uploaderName  = currentUser.displayName
             )
         }
     }
@@ -83,20 +89,15 @@ fun WorkspaceScreen(
         }
     }
 
-
-
-    // ИСПРАВЛЕНО: запускаем загрузку данных workspace при входе
     LaunchedEffect(application.applicationId, currentUser.id) {
         if (application.applicationId > 0) {
             workspaceViewModel.startWorkspace(application.applicationId, currentUser.id)
         }
     }
 
-    // Останавливаем polling при выходе из экрана
     DisposableEffect(Unit) {
         onDispose { workspaceViewModel.stopWorkspace() }
     }
-
 
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty() && selectedTab == 0) {
@@ -104,11 +105,42 @@ fun WorkspaceScreen(
         }
     }
 
-
+    // Когда задание завершается — вызываем onTaskCompleted ровно один раз,
+    // чтобы MainApp мог показать диалог отзыва поверх WorkspaceCompletedScreen.
+    LaunchedEffect(uiState.isCompleted) {
+        if (uiState.isCompleted && !reviewPromptTriggered) {
+            reviewPromptTriggered = true
+            val revieweeId = if (isStudent) uiState.employerId else uiState.studentId
+            val revieweeName = if (isStudent) {
+                task.employerName.ifBlank { "Работодатель" }
+            } else {
+                application.student?.displayName ?: "Студент"
+            }
+            if (revieweeId > 0) {
+                onTaskCompleted(
+                    PendingReview(
+                        revieweeId    = revieweeId,
+                        revieweeName  = revieweeName,
+                        applicationId = application.applicationId,
+                        taskId        = task.id,
+                        taskTitle     = task.title,
+                        reviewerRole  = if (isStudent) "STUDENT" else "EMPLOYER"
+                    )
+                )
+            }
+        }
+    }
 
     val myConfirmed    = if (isStudent) uiState.studentConfirmed  else uiState.employerConfirmed
     val otherConfirmed = if (isStudent) uiState.employerConfirmed else uiState.studentConfirmed
     val otherTitle     = if (isStudent) "работодателя" else "студента"
+
+    // Задание завершено — показываем экран завершения (диалог отзыва
+    // показывается поверх него через MainApp)
+    if (uiState.isCompleted) {
+        WorkspaceCompletedScreen(task = task, onBack = onBack)
+        return
+    }
 
     if (showCompletionDialog) {
         AlertDialog(
@@ -145,11 +177,6 @@ fun WorkspaceScreen(
                 OutlinedButton(onClick = { showCompletionDialog = false }) { Text("Отмена") }
             }
         )
-    }
-
-    if (uiState.isCompleted) {
-        WorkspaceCompletedScreen(task = task, onBack = onBack)
-        return
     }
 
     Scaffold(
@@ -237,7 +264,8 @@ fun WorkspaceScreen(
                             ) {
                                 Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
                                 Text(
-                                    text  = if (isStudent) "Работодатель подтвердил завершение. Нажмите «Завершить» для окончания." else "Студент подтвердил завершение. Нажмите «Завершить» для окончания.",
+                                    text  = if (isStudent) "Работодатель подтвердил завершение. Нажмите «Завершить» для окончания."
+                                    else "Студент подтвердил завершение. Нажмите «Завершить» для окончания.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF388E3C),
                                     fontWeight = FontWeight.Medium
@@ -265,7 +293,7 @@ fun WorkspaceScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             IconButton(
-                                onClick = { filePickerLauncher.launch("*/*") },
+                                onClick  = { filePickerLauncher.launch("*/*") },
                                 modifier = Modifier.size(44.dp)
                             ) {
                                 Icon(
@@ -310,9 +338,9 @@ fun WorkspaceScreen(
                             ) {
                                 if (uiState.isSendingMessage) {
                                     CircularProgressIndicator(
-                                        modifier   = Modifier.size(20.dp),
+                                        modifier    = Modifier.size(20.dp),
                                         strokeWidth = 2.dp,
-                                        color      = Color.White
+                                        color       = Color.White
                                     )
                                 } else {
                                     IconButton(
@@ -371,10 +399,10 @@ fun WorkspaceScreen(
                     listState     = listState
                 )
                 1 -> FilesContent(
-                    files        = uiState.files,
-                    isUploading  = uiState.isUploadingFile,
-                    onUpload     = { filePickerLauncher.launch("*/*") },
-                    onOpenFile   = { url ->
+                    files       = uiState.files,
+                    isUploading = uiState.isUploadingFile,
+                    onUpload    = { filePickerLauncher.launch("*/*") },
+                    onOpenFile  = { url ->
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                             context.startActivity(intent)
@@ -400,7 +428,7 @@ private fun ChatContent(
                 Text("Чат пуст", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Напишите первое сообщение работодателю",
+                    "Напишите первое сообщение",
                     style     = MaterialTheme.typography.bodyMedium,
                     color     = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -411,11 +439,10 @@ private fun ChatContent(
     }
 
     LazyColumn(
-        state           = listState,
-        modifier        = Modifier.fillMaxSize(),
-        contentPadding  = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        reverseLayout   = false
+        state          = listState,
+        modifier       = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(messages, key = { it.id }) { msg ->
             val isMine = msg.senderId == currentUserId
@@ -437,16 +464,16 @@ private fun MessageBubble(message: WorkspaceMessage, isMine: Boolean) {
         RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
 
     Column(
-        modifier              = Modifier.fillMaxWidth().animateContentSize(),
-        horizontalAlignment   = if (isMine) Alignment.End else Alignment.Start
+        modifier            = Modifier.fillMaxWidth().animateContentSize(),
+        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
         if (!isMine) {
             Text(
-                text   = message.senderName,
-                style  = MaterialTheme.typography.labelSmall,
-                color  = MaterialTheme.colorScheme.primary,
+                text       = message.senderName,
+                style      = MaterialTheme.typography.labelSmall,
+                color      = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                modifier   = Modifier.padding(start = 4.dp, bottom = 2.dp)
             )
         }
         Box(
@@ -491,8 +518,8 @@ private fun FilesContent(
             if (files.isEmpty()) {
                 item {
                     Box(
-                        modifier          = Modifier.fillParentMaxSize(),
-                        contentAlignment  = Alignment.Center
+                        modifier         = Modifier.fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -533,7 +560,7 @@ private fun FilesContent(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .height(52.dp),
-                    shape    = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     if (isUploading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
@@ -557,8 +584,8 @@ private fun FileItem(file: WorkspaceFile, onOpen: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier             = Modifier.padding(14.dp),
-            verticalAlignment    = Alignment.CenterVertically,
+            modifier              = Modifier.padding(14.dp),
+            verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
@@ -568,24 +595,24 @@ private fun FileItem(file: WorkspaceFile, onOpen: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 val emoji = when {
-                    file.mimeType.startsWith("image/")                   -> "🖼️"
-                    file.mimeType.contains("pdf")                        -> "📄"
-                    file.mimeType.contains("zip") || file.mimeType.contains("rar") -> "🗜️"
-                    file.mimeType.contains("word") || file.mimeType.contains("doc") -> "📝"
+                    file.mimeType.startsWith("image/")                                -> "🖼️"
+                    file.mimeType.contains("pdf")                                     -> "📄"
+                    file.mimeType.contains("zip") || file.mimeType.contains("rar")   -> "🗜️"
+                    file.mimeType.contains("word") || file.mimeType.contains("doc")  -> "📝"
                     file.mimeType.contains("excel") || file.mimeType.contains("sheet") -> "📊"
-                    file.mimeType.startsWith("video/")                   -> "🎬"
-                    file.mimeType.startsWith("audio/")                   -> "🎵"
-                    else                                                  -> "📎"
+                    file.mimeType.startsWith("video/")                               -> "🎬"
+                    file.mimeType.startsWith("audio/")                               -> "🎵"
+                    else                                                              -> "📎"
                 }
                 Text(emoji, fontSize = 22.sp)
             }
             Column(Modifier.weight(1f)) {
                 Text(
-                    text      = file.originalName,
-                    style     = MaterialTheme.typography.bodyMedium,
+                    text       = file.originalName,
+                    style      = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines  = 1,
-                    overflow  = TextOverflow.Ellipsis
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
@@ -614,7 +641,12 @@ private fun WorkspaceCompletedScreen(task: Task, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text("🎉", fontSize = 72.sp)
-            Text("Задание завершено!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(
+                "Задание завершено!",
+                style      = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign  = TextAlign.Center
+            )
             Text(
                 text      = "«${task.title}» успешно выполнено. Обе стороны подтвердили завершение.",
                 style     = MaterialTheme.typography.bodyMedium,
@@ -623,10 +655,10 @@ private fun WorkspaceCompletedScreen(task: Task, onBack: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Button(
-                onClick = onBack,
+                onClick  = onBack,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape   = RoundedCornerShape(14.dp),
-                colors  = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                shape    = RoundedCornerShape(14.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
                 Icon(Icons.Rounded.CheckCircle, null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
@@ -637,7 +669,7 @@ private fun WorkspaceCompletedScreen(task: Task, onBack: () -> Unit) {
 }
 
 private fun formatMessageTime(timestamp: Long): String = try {
-    val now = System.currentTimeMillis()
+    val now  = System.currentTimeMillis()
     val diff = now - timestamp
     if (diff < 24 * 60 * 60 * 1000) {
         SimpleDateFormat("HH:mm", Locale("ru")).format(Date(timestamp))
@@ -647,7 +679,7 @@ private fun formatMessageTime(timestamp: Long): String = try {
 } catch (e: Exception) { "" }
 
 private fun formatFileSize(bytes: Long): String = when {
-    bytes < 1024         -> "$bytes Б"
-    bytes < 1024 * 1024  -> "${bytes / 1024} КБ"
-    else                 -> "${"%.1f".format(bytes / 1024.0 / 1024.0)} МБ"
+    bytes < 1024        -> "$bytes Б"
+    bytes < 1024 * 1024 -> "${bytes / 1024} КБ"
+    else                -> "${"%.1f".format(bytes / 1024.0 / 1024.0)} МБ"
 }

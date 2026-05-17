@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.studentgigs.data.model.Application as StudentApplication
+import com.example.studentgigs.data.model.PendingReview
 import com.example.studentgigs.data.model.ApplicationStatus
 import com.example.studentgigs.data.repository.ApplicationRepository
 import com.example.studentgigs.data.repository.ApplicationResult
@@ -37,7 +38,8 @@ data class ApplicationUiState(
 
     // ── Завершение задания (работодатель) ─────────────────────────────
     val isConfirmingCompletion: Boolean = false,
-    val completionMessage: String? = null
+    val completionMessage: String? = null,
+    val pendingReview: PendingReview? = null
 )
 
 class ApplicationViewModel(application: android.app.Application) : AndroidViewModel(application) {
@@ -215,9 +217,23 @@ class ApplicationViewModel(application: android.app.Application) : AndroidViewMo
             _uiState.value = _uiState.value.copy(isConfirmingCompletion = true, error = null)
             when (val result = repository.confirmCompletion(applicationId, userId)) {
                 is ApplicationResult.Success -> {
+                    val bothConfirmed = result.bothConfirmed
+                    val pendingReview: PendingReview? = if (bothConfirmed) {
+                        val studentApp = _uiState.value.taskApplications.firstOrNull {
+                            it.status == ApplicationStatus.IN_PROGRESS
+                        }
+                        PendingReview(
+                            revieweeId   = studentApp?.studentId ?: 0L,
+                            revieweeName = studentApp?.student?.displayName ?: "Студент",
+                            applicationId = applicationId,
+                            taskId       = taskId,
+                            reviewerRole = "EMPLOYER"
+                        )
+                    } else null
                     _uiState.value = _uiState.value.copy(
                         isConfirmingCompletion = false,
-                        completionMessage = "Подтверждение получено"
+                        completionMessage = if (bothConfirmed) "Задание завершено!" else "Ожидаем подтверждения от студента",
+                        pendingReview = pendingReview
                     )
                     loadTaskApplications(taskId, employerId)
                 }
@@ -233,6 +249,10 @@ class ApplicationViewModel(application: android.app.Application) : AndroidViewMo
 
     fun clearCompletionMessage() {
         _uiState.value = _uiState.value.copy(completionMessage = null)
+    }
+
+    fun clearPendingReview() {
+        _uiState.value = _uiState.value.copy(pendingReview = null)
     }
 
     fun clearError() {

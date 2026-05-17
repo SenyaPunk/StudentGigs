@@ -98,6 +98,10 @@ import com.example.studentgigs.viewmodel.AuthViewModel
 import com.example.studentgigs.viewmodel.TaskViewModel
 import com.example.studentgigs.viewmodel.WorkspaceViewModel
 import com.example.studentgigs.view.OnApp.components.WorkspaceScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.studentgigs.data.model.PendingReview
+import com.example.studentgigs.view.OnApp.components.ReviewDialog
+import com.example.studentgigs.viewmodel.ReviewViewModel
 
 data class Category(
     val name: String,
@@ -203,6 +207,63 @@ fun MainApp(
 
     val workspaceUiState by workspaceViewModel.uiState.collectAsState()
 
+    val reviewViewModel: ReviewViewModel = viewModel()
+    val reviewUiState by reviewViewModel.uiState.collectAsState()
+
+    // Загружаем отправленные отзывы и отзывы о пользователе сразу при авторизации
+    LaunchedEffect(currentUser?.id) {
+        currentUser?.id?.let { uid ->
+            reviewViewModel.loadMySubmittedReviews(uid)
+            reviewViewModel.loadReviews(uid)
+        }
+    }
+
+    var showReviewDialog by remember { mutableStateOf(false) }
+    var pendingReviewData by remember { mutableStateOf<PendingReview?>(null) }
+    // Задание работодателя, для которого нужно показать диалог отзыва
+    var reviewForTask by remember { mutableStateOf<com.example.studentgigs.data.model.Task?>(null) }
+
+    // Работодатель: после загрузки откликов ищем завершённое задание для отзыва.
+    // Ищем ТОЛЬКО COMPLETED-заявку, чтобы не показывать диалог для активных заданий.
+    LaunchedEffect(appUiState.taskApplications) {
+        val task = reviewForTask ?: return@LaunchedEffect
+        val completedApp = appUiState.taskApplications.firstOrNull {
+            it.status == ApplicationStatus.COMPLETED
+        } ?: return@LaunchedEffect
+
+        // Не показываем диалог, если отзыв уже оставлен
+        if (completedApp.applicationId in reviewUiState.reviewedApplicationIds ||
+            task.id in reviewUiState.reviewedTaskIds) {
+            reviewForTask = null
+            return@LaunchedEffect
+        }
+
+        pendingReviewData = PendingReview(
+            revieweeId    = completedApp.studentId,
+            revieweeName  = completedApp.student?.displayName ?: "Студент",
+            applicationId = completedApp.applicationId,
+            taskId        = task.id,
+            taskTitle     = task.title,
+            reviewerRole  = "EMPLOYER"
+        )
+        showReviewDialog = true
+        reviewForTask = null
+    }
+
+    // После отправки отзыва — закрываем диалог, обновляем данные
+    LaunchedEffect(reviewUiState.submitSuccess) {
+        if (reviewUiState.submitSuccess) {
+            showReviewDialog = false
+            pendingReviewData = null
+            reviewViewModel.clearSubmitSuccess()
+            // Обновляем отзывы о текущем пользователе и список уже отправленных
+            currentUser?.id?.let { uid ->
+                reviewViewModel.loadReviews(uid)
+                reviewViewModel.loadMySubmittedReviews(uid)
+            }
+        }
+    }
+
     val studentInProgressApp = if (isStudent) {
         appUiState.applications.firstOrNull {
             it.taskId == selectedTask?.id && it.status == ApplicationStatus.IN_PROGRESS
@@ -224,6 +285,7 @@ fun MainApp(
             }
             "employer_tasks"                -> currentRoute = "profile"
             "student_my_projects"           -> currentRoute = "profile"
+            "my_reviews"                    -> currentRoute = "profile"
             else                            -> currentRoute = "home"
         }
     }
@@ -335,33 +397,61 @@ fun MainApp(
                     }
                     ProfileScreen(
                         authViewModel = authViewModel,
+                        reviewViewModel = reviewViewModel,
                         activeTasksCount = if (isEmployer) activeCount else appUiState.applications.size,
                         onNavigateToNotifications = { currentRoute = "notification" },
                         onNavigateToVerification  = { currentRoute = "verification" },
                         onNavigateToMyTasks = {
                             if (isStudent) currentRoute = "student_my_projects"
                             else currentRoute = "employer_tasks"
-                        }
+                        },
+                        onNavigateToReviews = { currentRoute = "my_reviews" }
                     )
                 }
 
                 // ── Мои проекты (студент) ─────────────────────────────────
                 "student_my_projects" -> {
+                    // Обновляем список отправленных отзывов при открытии экрана
+                    LaunchedEffect(Unit) {
+                        currentUser?.id?.let { reviewViewModel.loadMySubmittedReviews(it) }
+                    }
                     StudentMyProjectsScreen(
-                        applicationViewModel = applicationViewModel,
-                        onBack = { currentRoute = "profile" },
-                        onTaskClick = { clickedTask ->
+                        applicationViewModel   = applicationViewModel,
+                        onBack                 = { currentRoute = "profile" },
+                        onTaskClick            = { clickedTask ->
                             selectedTask = clickedTask
                             isViewingOwnTask = false
                             currentRoute = "gig_details"
                         },
-                        // ИСПРАВЛЕНО: прямой переход в рабочую зону
-                        onWorkspaceClick = { application ->
+                        onWorkspaceClick       = { application ->
                             selectedApplication = application
                             selectedTask = application.task
                             workspacePreviousRoute = "student_my_projects"
                             currentRoute = "workspace"
-                        }
+                        },
+                        onLeaveReview          = { app ->
+                            // Не показываем диалог, если отзыв уже оставлен
+                            if (app.applicationId in reviewUiState.reviewedApplicationIds) return@StudentMyProjectsScreen
+                            val task = app.task ?: return@StudentMyProjectsScreen
+                            pendingReviewData = PendingReview(
+                                revieweeId    = task.employerId,
+                                revieweeName  = task.employerName,
+                                applicationId = app.applicationId,
+                                taskId        = task.id,
+                                taskTitle     = task.title,
+                                reviewerRole  = "STUDENT"
+                            )
+                            showReviewDialog = true
+                        },
+                        reviewedApplicationIds = reviewUiState.reviewedApplicationIds
+                    )
+                }
+
+                // ── Мои отзывы ────────────────────────────────────────────
+                "my_reviews" -> {
+                    com.example.studentgigs.view.OnApp.components.MyReviewsScreen(
+                        reviewViewModel = reviewViewModel,
+                        onBack = { currentRoute = "profile" }
                     )
                 }
 
@@ -395,18 +485,28 @@ fun MainApp(
                 }
 
                 // ── Мои задания (работодатель) ────────────────────────────
-                // ИЗМЕНЕНО: ставим isViewingOwnTask = true при клике
                 "employer_tasks" -> {
                     currentUser?.let { user ->
+                        // Обновляем список отправленных отзывов при открытии экрана
+                        LaunchedEffect(Unit) {
+                            reviewViewModel.loadMySubmittedReviews(user.id)
+                        }
                         EmployerTasksScreen(
-                            tasks = taskUiState.employerTasks,
+                            tasks             = taskUiState.employerTasks,
                             currentEmployerId = user.id,
-                            onBack = { currentRoute = "profile" },
-                            onTaskClick = { clickedTask ->
+                            onBack            = { currentRoute = "profile" },
+                            onTaskClick       = { clickedTask ->
                                 selectedTask = clickedTask
-                                isViewingOwnTask = true   // ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
+                                isViewingOwnTask = true
                                 currentRoute = "gig_details"
-                            }
+                            },
+                            onLeaveReviewForTask = { task ->
+                                // Не показываем диалог, если отзыв уже оставлен
+                                if (task.id in reviewUiState.reviewedTaskIds) return@EmployerTasksScreen
+                                reviewForTask = task
+                                applicationViewModel.loadTaskApplications(task.id, user.id)
+                            },
+                            reviewedTaskIds = reviewUiState.reviewedTaskIds
                         )
                     }
                 }
@@ -429,19 +529,29 @@ fun MainApp(
                     }
                 }
 
-                // ── НОВЫЙ: Профиль студента (работодатель смотрит) ────────
-                // Рабочая зона (студент)
+                // ── Рабочая зона ──────────────────────────────────────────
                 "workspace" -> {
                     val application = selectedApplication
                     val task = selectedTask
                     val user = currentUser
                     if (application != null && task != null && user != null) {
                         WorkspaceScreen(
-                            application = application,
-                            task = task,
-                            currentUser = user,
+                            application        = application,
+                            task               = task,
+                            currentUser        = user,
                             workspaceViewModel = workspaceViewModel,
-                            onBack = { currentRoute = workspacePreviousRoute }
+                            onBack             = { currentRoute = workspacePreviousRoute },
+                            // Вызывается ровно один раз при завершении задания.
+                            // Если отзыв уже оставлен — диалог не показываем.
+                            onTaskCompleted    = { pr ->
+                                val alreadyReviewed =
+                                    pr.applicationId in reviewUiState.reviewedApplicationIds ||
+                                            pr.taskId in reviewUiState.reviewedTaskIds
+                                if (!alreadyReviewed) {
+                                    pendingReviewData = pr
+                                    showReviewDialog = true
+                                }
+                            }
                         )
                     }
                 }
@@ -515,6 +625,36 @@ fun MainApp(
                 currentRoute = currentRoute,
                 onNavigate = { currentRoute = it }
             )
+        }
+
+        // ── Диалог отзыва ────────────────────────────────────────────────
+        if (showReviewDialog) {
+            val pr = pendingReviewData
+            if (pr != null) {
+                ReviewDialog(
+                    revieweeName  = pr.revieweeName,
+                    taskTitle     = pr.taskTitle,
+                    isSubmitting  = reviewUiState.isSubmitting,
+                    onSubmit      = { rating, comment ->
+                        currentUser?.let { user ->
+                            reviewViewModel.submitReview(
+                                reviewerId   = user.id,
+                                revieweeId   = pr.revieweeId,
+                                applicationId = pr.applicationId,
+                                taskId       = pr.taskId,
+                                rating       = rating,
+                                comment      = comment,
+                                reviewerRole = pr.reviewerRole
+                            )
+                        }
+                    },
+                    onSkip        = {
+                        showReviewDialog = false
+                        pendingReviewData = null
+                        applicationViewModel.clearPendingReview()
+                    }
+                )
+            }
         }
     }
 }

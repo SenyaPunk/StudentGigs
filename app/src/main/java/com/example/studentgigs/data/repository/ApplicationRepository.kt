@@ -13,7 +13,8 @@ sealed class ApplicationResult {
     data class Success(
         val applied: Boolean = false,
         val applications: List<Application> = emptyList(),
-        val appliedTaskIds: Set<Long> = emptySet()
+        val appliedTaskIds: Set<Long> = emptySet(),
+        val bothConfirmed: Boolean = false
     ) : ApplicationResult()
     data class Error(val message: String) : ApplicationResult()
 }
@@ -278,7 +279,9 @@ class ApplicationRepository(context: Context) {
                 if (response.body.isBlank()) return@withContext ApplicationResult.Error("Сервер не ответил")
                 val respJson = org.json.JSONObject(response.body)
                 if (respJson.optBoolean("success", false)) {
-                    ApplicationResult.Success()
+                    val data = respJson.optJSONObject("data")
+                    val bothConfirmed = data?.optBoolean("both_confirmed", false) ?: false
+                    ApplicationResult.Success(bothConfirmed = bothConfirmed)
                 } else {
                     ApplicationResult.Error(respJson.optString("message", "Ошибка подтверждения"))
                 }
